@@ -1,4 +1,4 @@
-let questions=[],seen={},ready=false;let tab='revise',grade='सभी कक्षाएँ',book='सभी पुस्तकें',subject='सभी विषय',chapter='सभी टॉपिक',subtopic='सभी सबटॉपिक',index=0,revealed=0,autoPaused=false;let shelf={level:'grade',grade:'',subject:'',book:'',chapter:'',topic:'',subtopic:''};
+let questions=[],seen={},ready=false,trash=[];let tab='revise',grade='सभी कक्षाएँ',book='सभी पुस्तकें',subject='सभी विषय',chapter='सभी टॉपिक',subtopic='सभी सबटॉपिक',index=0,revealed=0,autoPaused=false;let shelf={level:'grade',grade:'',subject:'',book:'',chapter:'',topic:'',subtopic:''};
 const $=s=>document.querySelector(s);const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));const save=()=>{try{localStorage.setItem('shadabRevisionQuestions',JSON.stringify(questions))}catch(e){}queueSync()};const gradeOf=q=>q.grade||'बिना कक्षा',subjectOf=q=>q.subject||'सामान्य';const bookOf=q=>q.book||`${q.subject||'सामान्य'} — सामान्य पुस्तक`;const chapterOf=q=>q.chapter||'बिना अध्याय';const topicOf=q=>q.topic||'सामान्य प्रश्न';const subtopicOf=q=>q.subtopic||'बिना सबटॉपिक';const filtered=()=>questions.filter(q=>gradeOf(q)===shelf.grade&&subjectOf(q)===shelf.subject&&bookOf(q)===shelf.book&&chapterOf(q)===shelf.chapter&&topicOf(q)===shelf.topic&&subtopicOf(q)===shelf.subtopic);
 function options(values,current){return values.map(v=>`<option ${v===current?'selected':''} value="${esc(v)}">${esc(v)}</option>`).join('')}
 function render(){document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));if(tab==='revise')renderRevise();if(tab==='manage')renderManage();if(tab==='report')renderReport()}
@@ -83,7 +83,7 @@ const folderHtml=Object.entries(groupBy(questions,q=>q.grade||'बिना क�
 }).join('');
 const bookOptions=[...new Set(questions.map(bookOf))];
 $('#content').innerHTML=`
-<div class="panel"><h2>🎯 परीक्षा सिलेबस फ़ोल्डर</h2><p class="hint">यह बटन SSC CGL, CTET, BPSC और UPSC की किताबों, अध्यायों, टॉपिक और सबटॉपिक के <b>खाली फ़ोल्डर</b> बनाता है, ताकि हर बार नाम न लिखना पड़े। इन्हें नीचे “कहाँ जोड़ना है?” में चुनकर सीधे प्रश्न डालें। ये पहली बार अपने-आप जुड़ चुके हैं। कोई फ़ोल्डर हटा दिया हो तो इस बटन से वापस आ जाएगा।</p><div class="actions"><button class="primary" id="addSyl">📥 सिलेबस फ़ोल्डर जोड़ें / वापस लाएँ</button></div><div id="sylStatus" class="notice">${sylSummary()}</div></div>
+<div class="panel"><h2>🎯 परीक्षा सिलेबस फ़ोल्डर</h2><p class="hint">यह बटन SSC CGL, CTET, BPSC और UPSC की किताबों, अध्यायों, टॉपिक और सबटॉपिक के <b>खाली फ़ोल्डर</b> बनाता है, ताकि हर बार नाम न लिखना पड़े। इन्हें नीचे “कहाँ जोड़ना है?” में चुनकर सीधे प्रश्न डालें। ये पहली बार अपने-आप जुड़ चुके हैं। ध्यान दें: यह बटन हटाए हुए <b>सारे</b> सिलेबस फ़ोल्डर वापस ला देता है। सिर्फ़ एक किताब, अध्याय या टॉपिक वापस चाहिए तो नीचे “🗑️ कचरा पेटी” से सिर्फ़ वही वापस लाएँ।</p><div class="actions"><button class="primary" id="addSyl">📥 सारे सिलेबस फ़ोल्डर जोड़ें</button></div><div id="sylStatus" class="notice">${sylSummary()}</div></div>
 <div class="panel"><h2>📍 कहाँ जोड़ना है?</h2><p class="hint">पहले यहाँ जगह चुनें, फिर नीचे Bulk Import या एक प्रश्न जोड़ें। पुराने फ़ोल्डर लिस्ट से चुनें, नया बनाना हो तो “➕ नया लिखें” चुनें। चुनी हुई जगह बनी रहेगी, इसलिए अगला import भी वहीं होगा।</p><div id="picker"></div></div>
 <div class="panel"><h2>📚 Bulk Import (TXT से कई प्रश्न)</h2>
 <p class="hint">TXT के सभी प्रश्न ऊपर “कहाँ जोड़ना है?” में चुनी गई जगह पर Import होंगे।</p>
@@ -104,8 +104,8 @@ $('#content').innerHTML=`
 <div class="field wide"><label>प्रश्न</label><textarea name="q" required rows="2" placeholder="लघु प्रश्न लिखें"></textarea></div>
 <div class="field wide"><label>उत्तर — हर पंक्ति अलग लाइन में लिखें</label><textarea name="a" required rows="5" placeholder="पहली पंक्ति\nदूसरी पंक्ति\nतीसरी पंक्ति"></textarea><span class="hint">Revision में एक क्लिक पर एक नई पंक्ति खुलेगी।</span></div>
 <div class="wide"><button class="primary" type="submit">＋ प्रश्न सेव करें</button></div><div class="wide success" id="addStatus"></div></form><div class="notice">कक्षा, विषय, पुस्तक, अध्याय, टॉपिक और सबटॉपिक अपनी जरूरत के अनुसार लिखें। पढ़ाई का क्रम: कक्षा → पुस्तक → अध्याय → टॉपिक → सबटॉपिक।</div></div>
-<div class="panel"><h2>📚 कक्षा → पुस्तक → अध्याय → टॉपिक → सबटॉपिक (${questions.length} प्रश्न)</h2>${folderHtml||'<p class="empty">अभी कोई प्रश्न नहीं है।</p>'}</div>`;
-renderPicker();$('#addSyl').onclick=()=>{const n=loadAll();renderManage();$('#sylStatus').textContent=(n?`✓ ${n} नए फ़ोल्डर जुड़े। `:'सब फ़ोल्डर पहले से मौजूद हैं। ')+sylSummary()};const bulkText=$('#bulkText'),bulkStatus=$('#bulkStatus');
+${trashHtml()}<div class="panel"><h2>📚 कक्षा → पुस्तक → अध्याय → टॉपिक → सबटॉपिक (${questions.length} प्रश्न)</h2>${folderHtml||'<p class="empty">अभी कोई प्रश्न नहीं है।</p>'}</div>`;
+renderPicker();bindTrash();$('#addSyl').onclick=()=>{if(!confirm('हटाए हुए सारे सिलेबस फ़ोल्डर वापस आ जाएँगे। सिर्फ़ एक किताब/अध्याय वापस चाहिए तो “कचरा पेटी” से लाएँ। फिर भी सब जोड़ें?'))return;const n=loadAll();renderManage();$('#sylStatus').textContent=(n?`✓ ${n} नए फ़ोल्डर जुड़े। `:'सब फ़ोल्डर पहले से मौजूद हैं। ')+sylSummary()};const bulkText=$('#bulkText'),bulkStatus=$('#bulkStatus');
 $('#txtFile').addEventListener('change',async e=>{const file=e.target.files&&e.target.files[0];if(!file)return;bulkText.value=await file.text();bulkStatus.textContent=`फ़ाइल लोड हुई: ${file.name}। अब “प्रश्नों की जाँच करें” दबाएँ।`;});
 const getBulk=()=>parseTxtQuestions(bulkText.value);
 $('#checkBulk').onclick=()=>{const parsed=getBulk();bulkStatus.textContent=bulkText.value.trim()?`जाँच पूरी: ${parsed.length} प्रश्न और उनके उत्तर मिले। ${parsed.length?'अब पुस्तक और अध्याय का नाम जाँचकर Import करें।':'TXT का फ़ॉर्मेट नमूने के अनुसार जाँचें।'}`:'पहले TXT फ़ाइल चुनें या टेक्स्ट पेस्ट करें।';};
@@ -127,13 +127,13 @@ const match=q=>{
 };
 const count=questions.filter(match).length;if(!count)return;
 const names={grade:'कक्षा / फ़ोल्डर',book:'किताब',chapter:'अध्याय',topic:'टॉपिक',subtopic:'सबटॉपिक'};
-if(confirm(`क्या आप ${names[target.level]} “${target[target.level==='grade'?'g':target.level==='book'?'b':target.level==='chapter'?'c':target.level==='topic'?'t':'sub']}” हटाना चाहते हैं?\n\nइससे ${count} प्रश्न स्थायी रूप से हट जाएँगे। पहले बैकअप डाउनलोड कर लें।`)){
- questions=questions.filter(q=>!match(q));save();
+if(confirm(`क्या आप ${names[target.level]} “${target[target.level==='grade'?'g':target.level==='book'?'b':target.level==='chapter'?'c':target.level==='topic'?'t':'sub']}” हटाना चाहते हैं?\n\nइससे ${count} प्रश्न हटेंगे, पर वे “🗑️ कचरा पेटी” में रहेंगे और वहाँ से वापस आ सकते हैं।`)){
+ {const nm=target[target.level==='grade'?'g':target.level==='book'?'b':target.level==='chapter'?'c':target.level==='topic'?'t':'sub'];moveToTrash(names[target.level]+': '+nm+(target.level!=='grade'?'  ('+target.g+')':''),questions.filter(match))}questions=questions.filter(q=>!match(q));save();
  shelf={level:'grade',grade:'',subject:'',book:'',chapter:'',topic:'',subtopic:''};index=0;revealed=0;
  renderManage();
  }
 }));
-document.querySelectorAll('[data-delete]').forEach(b=>b.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();if(confirm('क्या यह प्रश्न हटाना है?')){questions=questions.filter(q=>String(q.id)!==String(b.dataset.delete));save();renderManage()}}));
+document.querySelectorAll('[data-delete]').forEach(b=>b.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();if(confirm('क्या यह प्रश्न हटाना है?')){const it=questions.filter(q=>String(q.id)===String(b.dataset.delete));moveToTrash('प्रश्न: '+(it[0]?it[0].q.slice(0,40):''),it);questions=questions.filter(q=>String(q.id)!==String(b.dataset.delete));save();renderManage()}}));
 }
 function renderReport(){let known=Object.keys(seen).filter(id=>seen[id]==='याद').length;$('#content').innerHTML=`<div class="panel"><h2>आपकी Revision रिपोर्ट</h2><div class="stats"><div class="stat"><b>${questions.filter(q=>!q.ph).length}</b><span>कुल प्रश्न</span></div><div class="stat"><b>${known}</b><span>याद हो गए</span></div><div class="stat"><b>${Math.max(0,questions.filter(q=>!q.ph).length-known)}</b><span>बाकी प्रश्न</span></div></div><div class="actions"><button class="secondary" id="clearSeen">रिपोर्ट रीसेट करें</button><button class="outline" id="export">प्रश्नों का बैकअप डाउनलोड करें</button><label class="tab" style="display:inline-flex;align-items:center;cursor:pointer">बैकअप अपलोड करें<input id="import" type="file" accept="application/json" style="display:none"></label></div><div class="notice">प्रश्न कक्षा → पुस्तक → अध्याय → टॉपिक → सबटॉपिक के अनुसार व्यवस्थित हैं। डेटा MongoDB सर्वर पर सेव होता है, इसलिए हर डिवाइस पर एक जैसा दिखेगा।</div></div>`;$('#clearSeen').onclick=()=>{seen={};saveSeen();renderReport()};$('#export').onclick=()=>{let blob=new Blob([JSON.stringify(questions,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='shadab-revision-backup.json';a.click();URL.revokeObjectURL(url)};$('#import').onchange=async e=>{try{let data=JSON.parse(await e.target.files[0].text());if(Array.isArray(data)&&data.every(q=>q.q&&Array.isArray(q.a))){questions=data;save();renderReport()}else alert('यह सही प्रश्न बैकअप फ़ाइल नहीं है।')}catch{alert('फ़ाइल पढ़ी नहीं जा सकी।')}}}
 document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{tab=b.dataset.tab;render()}));boot();
@@ -167,7 +167,7 @@ async function boot(){
   let local=null;try{local=JSON.parse(localStorage.getItem('shadabRevisionQuestions'))}catch(e){}
   try{
     const d=await api('/api/data');
-    questions=d.questions||[];seen=d.seen||{};
+    questions=d.questions||[];seen=d.seen||{};trash=d.trash||[];
     if(!d.seeded){
       if(!questions.length)questions=(Array.isArray(local)&&local.length)?local:starter.slice();
       ready=true;loadAll();
@@ -176,6 +176,7 @@ async function boot(){
   }catch(e){
     questions=(Array.isArray(local)&&local.length)?local:starter.slice();
     try{seen=JSON.parse(localStorage.getItem('shadabRevisionSeen'))||{}}catch(x){}
+    try{trash=JSON.parse(localStorage.getItem('shadabTrash'))||[]}catch(x){}
     ready=false;setStatus('⚠️ सर्वर नहीं मिला — डेटा सिर्फ़ इसी डिवाइस में है');
   }
   render();
@@ -232,4 +233,44 @@ function getDst(){
   if(!ch)return{err:'अध्याय चुनें या लिखें।'};
   if(!top)return{err:'टॉपिक चुनें या लिखें।'};
   return{g,su,bk,ch,top,sub};
+}
+
+/* ===== कचरा पेटी: हटाई चीज़ें वापस लाने के लिए ===== */
+function saveTrash(){
+  try{localStorage.setItem('shadabTrash',JSON.stringify(trash))}catch(e){}
+  if(ready)api('/api/trash',{method:'PUT',body:JSON.stringify({trash})}).catch(()=>setStatus('⚠️ कचरा पेटी सर्वर पर सेव नहीं हुई'));
+}
+let toastT=null;
+function toast(msg,label,fn){
+  let b=document.getElementById('toastBar');
+  if(!b){b=document.createElement('div');b.id='toastBar';b.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:18px;max-width:92vw;background:#302719;color:#fff;padding:12px 14px;border-radius:14px;display:flex;gap:12px;align-items:center;z-index:99;box-shadow:0 8px 24px #0004;font-size:14px';document.body.appendChild(b)}
+  b.innerHTML='';const sp=document.createElement('span');sp.textContent=msg;b.appendChild(sp);
+  if(label){const bt=document.createElement('button');bt.textContent=label;bt.style.cssText='background:#fff;color:#302719;padding:8px 12px;white-space:nowrap';bt.onclick=()=>{b.style.display='none';fn()};b.appendChild(bt)}
+  b.style.display='flex';clearTimeout(toastT);toastT=setTimeout(()=>{b.style.display='none'},label?15000:4000);
+}
+function moveToTrash(label,items){
+  if(!items.length)return;
+  const t={tid:Date.now(),at:Date.now(),label,items};
+  trash.unshift(t);trash=trash.slice(0,50);saveTrash();
+  toast('🗑️ हटाया: '+label,'↩ पूर्ववत करें',()=>restoreTrash(t.tid));
+}
+function restoreTrash(tid){
+  const t=trash.find(x=>x.tid===tid);if(!t)return;
+  const ids=new Set(questions.map(q=>q.id));
+  const same=(a,b)=>gradeOf(a)===gradeOf(b)&&subjectOf(a)===subjectOf(b)&&bookOf(a)===bookOf(b)&&chapterOf(a)===chapterOf(b)&&topicOf(a)===topicOf(b)&&subtopicOf(a)===subtopicOf(b);
+  let n=0;
+  t.items.forEach(q=>{if(ids.has(q.id))return;if(q.ph&&questions.some(x=>same(x,q)))return;questions.push(q);n++});
+  trash=trash.filter(x=>x.tid!==tid);save();saveTrash();
+  toast('↩ वापस आ गया: '+t.label);
+  if(tab==='manage')renderManage();else if(tab==='revise')renderRevise();
+}
+function trashHtml(){
+  const rows=trash.map(t=>`<div class="qrow"><div><b>${esc(t.label)}</b><p>${t.items.length} प्रश्न · ${esc(new Date(t.at).toLocaleString('hi-IN'))}</p></div><div class="actions" style="margin:0"><button class="secondary" data-restore="${t.tid}">↩ वापस लाएँ</button><button class="danger" data-purge="${t.tid}">हमेशा के लिए हटाएँ</button></div></div>`).join('');
+  return `<div class="panel"><h2>🗑️ कचरा पेटी (${trash.length})</h2>${trash.length?`<p class="hint">गलती से हटाई चीज़ें यहाँ रहती हैं। जो चाहिए सिर्फ़ वही वापस लाएँ।</p><div class="question-list">${rows}</div><div class="actions"><button class="outline" id="emptyTrash">कचरा पेटी खाली करें</button></div>`:'<p class="hint">अभी कुछ नहीं हटाया गया। हटाई हुई किताब, अध्याय, टॉपिक या प्रश्न यहाँ मिलेंगे।</p>'}</div>`;
+}
+function bindTrash(){
+  document.querySelectorAll('[data-restore]').forEach(b=>b.onclick=()=>restoreTrash(Number(b.dataset.restore)));
+  document.querySelectorAll('[data-purge]').forEach(b=>b.onclick=()=>{if(confirm('यह हमेशा के लिए हट जाएगा। पक्का?')){trash=trash.filter(t=>t.tid!==Number(b.dataset.purge));saveTrash();renderManage()}});
+  const e=document.getElementById('emptyTrash');
+  if(e)e.onclick=()=>{if(confirm('पूरी कचरा पेटी खाली करें? ये चीज़ें फिर वापस नहीं आएँगी।')){trash=[];saveTrash();renderManage()}};
 }

@@ -33,12 +33,18 @@ app.get('/healthz', (req, res) => res.send('ok'));
 
 app.get('/api/data', async (req, res) => {
   try {
-    const [questions, seenDoc, seededDoc] = await Promise.all([
+    const [questions, seenDoc, seededDoc, trashDoc] = await Promise.all([
       Question.find({}, { _id: 0 }).sort({ id: 1 }).lean(),
       Meta.findById('seen').lean(),
       Meta.findById('seeded').lean(),
+      Meta.findById('trash').lean(),
     ]);
-    res.json({ questions, seen: (seenDoc && seenDoc.v) || {}, seeded: !!seededDoc });
+    res.json({
+      questions,
+      seen: (seenDoc && seenDoc.v) || {},
+      seeded: !!seededDoc,
+      trash: (trashDoc && trashDoc.v) || [],
+    });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: 'server error' });
@@ -80,6 +86,18 @@ app.put('/api/seen', needKey, async (req, res) => {
     const seen = req.body && req.body.seen;
     if (!seen || typeof seen !== 'object' || Array.isArray(seen)) return res.status(400).json({ error: 'invalid seen' });
     await Meta.updateOne({ _id: 'seen' }, { $set: { v: seen } }, { upsert: true });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'server error' });
+  }
+});
+
+app.put('/api/trash', needKey, async (req, res) => {
+  try {
+    const trash = req.body && req.body.trash;
+    if (!Array.isArray(trash)) return res.status(400).json({ error: 'invalid trash' });
+    await Meta.updateOne({ _id: 'trash' }, { $set: { v: trash.slice(0, 50) } }, { upsert: true });
     res.json({ ok: true });
   } catch (e) {
     console.error(e);
