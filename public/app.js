@@ -1,4 +1,4 @@
-let questions=[],seen={},ready=false,trash=[];let tab='revise',grade='सभी कक्षाएँ',book='सभी पुस्तकें',subject='सभी विषय',chapter='सभी टॉपिक',subtopic='सभी सबटॉपिक',index=0,revealed=0,autoPaused=false;let shelf={level:'grade',grade:'',subject:'',book:'',chapter:'',topic:'',subtopic:''};
+let questions=[],seen={},ready=false,trash=[],editId=null;let tab='revise',grade='सभी कक्षाएँ',book='सभी पुस्तकें',subject='सभी विषय',chapter='सभी टॉपिक',subtopic='सभी सबटॉपिक',index=0,revealed=0,autoPaused=false;let shelf={level:'grade',grade:'',subject:'',book:'',chapter:'',topic:'',subtopic:''};
 const $=s=>document.querySelector(s);const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));const save=()=>{try{localStorage.setItem('shadabRevisionQuestions',JSON.stringify(questions))}catch(e){}queueSync()};const gradeOf=q=>q.grade||'बिना कक्षा',subjectOf=q=>q.subject||'सामान्य';const bookOf=q=>q.book||`${q.subject||'सामान्य'} — सामान्य पुस्तक`;const chapterOf=q=>q.chapter||'बिना अध्याय';const topicOf=q=>q.topic||'सामान्य प्रश्न';const subtopicOf=q=>q.subtopic||'बिना सबटॉपिक';const filtered=()=>questions.filter(q=>gradeOf(q)===shelf.grade&&subjectOf(q)===shelf.subject&&bookOf(q)===shelf.book&&chapterOf(q)===shelf.chapter&&topicOf(q)===shelf.topic&&subtopicOf(q)===shelf.subtopic);
 function options(values,current){return values.map(v=>`<option ${v===current?'selected':''} value="${esc(v)}">${esc(v)}</option>`).join('')}
 function render(){document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));if(tab==='revise')renderRevise();if(tab==='manage')renderManage();if(tab==='report')renderReport()}
@@ -17,21 +17,21 @@ const countBook=(su,bk)=>questions.filter(q=>gradeOf(q)===shelf.grade&&subjectOf
 const countChapter=c=>inBook.filter(q=>chapterOf(q)===c&&!q.ph).length;
 const countTopic=t=>inChapter.filter(q=>topicOf(q)===t&&!q.ph).length;
 const countSub=sub=>inTopic.filter(q=>subtopicOf(q)===sub&&!q.ph).length;
-const card=(name,count,icon,action,cls='')=>`<button class="shelf-card ${cls}" data-shelf-action="${esc(action)}"><span class="folder-icon">${icon}</span><span class="shelf-name">${esc(name)}</span><span class="shelf-count">${count} प्रश्न</span></button>`;
-let crumbs=`<div class="crumbs"><button class="crumb ${shelf.level==='grade'?'current':''}" data-level="grade">🏠 सभी कक्षाएँ</button>${shelf.grade?`<button class="crumb ${shelf.level==='book'?'current':''}" data-level="book">📁 ${esc(shelf.grade)}</button>`:''}${shelf.book?`<button class="crumb ${shelf.level==='chapter'?'current':''}" data-level="chapter">📚 ${esc(shelf.book)}</button>`:''}${shelf.chapter?`<button class="crumb ${shelf.level==='topic'?'current':''}" data-level="topic">📂 ${esc(shelf.chapter)}</button>`:''}${shelf.topic?`<button class="crumb ${shelf.level==='subtopic'?'current':''}" data-level="subtopic">🗂️ ${esc(shelf.topic)}</button>`:''}${shelf.level==='study'?`<span class="crumb current">📖 पढ़ाई</span>`:''}</div>`;
+const hue=t=>[...String(t)].reduce((a,c)=>a+c.charCodeAt(0),0)%6;const card=(name,count,icon,action,cls='')=>`<button class="shelf-card c${hue(name)}" data-shelf-action="${esc(action)}"><span class="shelf-name">${esc(name)}</span><span class="shelf-count">${count} प्रश्न</span></button>`;
+let crumbs=`<div class="crumbs"><button class="crumb ${shelf.level==='grade'?'current':''}" data-level="grade">सभी कक्षाएँ</button>${shelf.grade?`<button class="crumb ${shelf.level==='book'?'current':''}" data-level="book">${esc(shelf.grade)}</button>`:''}${shelf.book?`<button class="crumb ${shelf.level==='chapter'?'current':''}" data-level="chapter">${esc(shelf.book)}</button>`:''}${shelf.chapter?`<button class="crumb ${shelf.level==='topic'?'current':''}" data-level="topic">${esc(shelf.chapter)}</button>`:''}${shelf.topic?`<button class="crumb ${shelf.level==='subtopic'?'current':''}" data-level="subtopic">${esc(shelf.topic)}</button>`:''}${shelf.level==='study'?`<span class="crumb current">पढ़ाई</span>`:''}</div>`;
 let body='';
 if(shelf.level==='grade'){
- body=`<div class="shelf-intro"><h2>📚 अपनी कक्षा चुनें</h2><span class="hint">कक्षा के फ़ोल्डर खोलकर अपनी किताब तक पहुँचें</span></div><div class="shelf-section"><p class="shelf-label">कक्षा / अध्ययन स्तर</p><div class="shelf-grid">${allGrades.map(g=>card(g,countGrade(g),'📁',`grade|${g}`)).join('')}</div></div>`;
+ body=`<div class="shelf-intro"><h2>अपनी कक्षा चुनें</h2><span class="hint">फ़ोल्डर खोलते जाइए: किताब → अध्याय → टॉपिक</span></div><div class="shelf-section"><p class="shelf-label">कक्षा / अध्ययन स्तर</p><div class="shelf-grid">${allGrades.map(g=>card(g,countGrade(g),'📁',`grade|${g}`)).join('')}</div></div>`;
 }else if(shelf.level==='book'){
- body=`<div class="shelf-intro"><h2>📚 ${esc(shelf.grade)} की किताबें</h2><span class="hint">हर किताब अपनी अलग जगह पर</span></div><div class="shelf-section"><p class="shelf-label">किताबों की शेल्फ</p><div class="shelf-row">${allBooks.map(b=>card(b.book,countBook(b.subject,b.book),'📕',`book|${b.subject}|${b.book}`,'book-card')).join('')}</div></div>`;
+ body=`<div class="shelf-intro"><h2>${esc(shelf.grade)} की किताबें</h2><span class="hint">अपनी किताब का फ़ोल्डर खोलें</span></div><div class="shelf-section"><p class="shelf-label">किताबें</p><div class="shelf-row">${allBooks.map(b=>card(b.book,countBook(b.subject,b.book),'📕',`book|${b.subject}|${b.book}`,'book-card')).join('')}</div></div>`;
 }else if(shelf.level==='chapter'){
- body=`<div class="shelf-intro"><h2>📖 ${esc(shelf.book)}</h2><span class="hint">विषय: ${esc(shelf.subject)}</span></div><div class="shelf-section"><p class="shelf-label">अध्याय चुनें</p><div class="shelf-grid">${chapters.map(c=>card(c,countChapter(c),'📂',`chapter|${c}`)).join('')}</div></div>`;
+ body=`<div class="shelf-intro"><h2>${esc(shelf.book)}</h2><span class="hint">विषय: ${esc(shelf.subject)}</span></div><div class="shelf-section"><p class="shelf-label">अध्याय चुनें</p><div class="shelf-grid">${chapters.map(c=>card(c,countChapter(c),'📂',`chapter|${c}`)).join('')}</div></div>`;
 }else if(shelf.level==='topic'){
- body=`<div class="shelf-intro"><h2>📂 ${esc(shelf.chapter)}</h2><span class="hint">अब अध्याय के अंदर टॉपिक चुनें</span></div><div class="shelf-section"><p class="shelf-label">टॉपिक</p><div class="shelf-grid">${topics.map(t=>card(t,countTopic(t),'🗂️',`topic|${t}`)).join('')}</div></div>`;
+ body=`<div class="shelf-intro"><h2>${esc(shelf.chapter)}</h2><span class="hint">अब अध्याय के अंदर टॉपिक चुनें</span></div><div class="shelf-section"><p class="shelf-label">टॉपिक</p><div class="shelf-grid">${topics.map(t=>card(t,countTopic(t),'🗂️',`topic|${t}`)).join('')}</div></div>`;
 }else if(shelf.level==='subtopic'){
- body=`<div class="shelf-intro"><h2>🗂️ ${esc(shelf.topic)}</h2><span class="hint">सबटॉपिक हो तो चुनें, वरना सीधे पढ़ाई शुरू करें</span></div><div class="shelf-section"><p class="shelf-label">सबटॉपिक / छोटे भाग</p><div class="shelf-grid">${subtopics.map(st=>card(st==='बिना सबटॉपिक'?'सीधे प्रश्न शुरू करें':st,countSub(st),st==='बिना सबटॉपिक'?'📖':'📄',`subtopic|${st}`)).join('')}</div></div>`;
+ body=`<div class="shelf-intro"><h2>${esc(shelf.topic)}</h2><span class="hint">सबटॉपिक हो तो चुनें, वरना सीधे पढ़ाई शुरू करें</span></div><div class="shelf-section"><p class="shelf-label">सबटॉपिक / छोटे भाग</p><div class="shelf-grid">${subtopics.map(st=>card(st==='बिना सबटॉपिक'?'सीधे प्रश्न शुरू करें':st,countSub(st),st==='बिना सबटॉपिक'?'📖':'📄',`subtopic|${st}`)).join('')}</div></div>`;
 }else if(shelf.level==='study'){
- body=`<button class="secondary study-back" id="backToShelf">← किताब की शेल्फ पर वापस</button>${q?`<div class="panel study-card"><div class="meta"><span>${esc(gradeOf(q))} · ${esc(subjectOf(q))} · ${esc(bookOf(q))}</span><span>प्रश्न ${index+1}/${list.length}</span></div><div class="book-spine">अध्याय: ${esc(chapterOf(q))}</div><div class="book-spine">टॉपिक: ${esc(topicOf(q))}</div>${q.subtopic?`<div class="book-spine">सबटॉपिक: ${esc(q.subtopic)}</div>`:''}<div class="progress"><span style="width:${list.length?(index+1)/list.length*100:0}%"></span></div><h2>प्रश्न ${index+1}</h2><div class="question">${esc(q.q)}</div><div class="answer-lines">${q.a.slice(0,revealed).map((line,i)=>`<div class="answer-line"><span class="line-label">पंक्ति ${i+1}</span>${esc(line)}</div>`).join('')}</div>${revealed===q.a.length?'<p class="success">✓ उत्तर पूरा हो गया!</p>':''}<div class="actions">${revealed<q.a.length?`<button class="primary" id="reveal">${revealed===0?'पहली पंक्ति दिखाएँ':'अगली पंक्ति दिखाएँ'} →</button>`:`<button class="primary" id="next">अगला प्रश्न →</button>`}<button class="secondary" id="autoToggle">${autoPaused?'▶ ऑटो रिवील चालू करें':'⏸ ऑटो रिवील रोकें'}</button><button class="secondary" id="remember">✓ याद हो गया</button><button class="outline" id="again">↻ फिर से देखें</button></div></div>`:`<div class="panel shelf-empty">इस सबटॉपिक में प्रश्न नहीं मिले।</div>`}`;
+ body=`<button class="secondary study-back" id="backToShelf">← वापस</button>${q?`<div class="panel study-card"><div class="meta"><span>${esc(gradeOf(q))} · ${esc(subjectOf(q))} · ${esc(bookOf(q))}</span><span>प्रश्न ${index+1}/${list.length}</span></div><div class="book-spine">अध्याय: ${esc(chapterOf(q))}</div><div class="book-spine">टॉपिक: ${esc(topicOf(q))}</div>${q.subtopic?`<div class="book-spine">सबटॉपिक: ${esc(q.subtopic)}</div>`:''}<div class="progress"><span style="width:${list.length?(index+1)/list.length*100:0}%"></span></div><h2>प्रश्न ${index+1}</h2><div class="question">${esc(q.q)}</div><div class="answer-lines">${q.a.slice(0,revealed).map((line,i)=>`<div class="answer-line"><span class="line-label">पंक्ति ${i+1}</span>${esc(line)}</div>`).join('')}</div>${revealed===q.a.length?'<p class="success">✓ उत्तर पूरा हो गया!</p>':''}<div class="actions">${revealed<q.a.length?`<button class="primary" id="reveal">${revealed===0?'पहली पंक्ति दिखाएँ':'अगली पंक्ति दिखाएँ'} →</button>`:`<button class="primary" id="next">अगला प्रश्न →</button>`}<button class="secondary" id="autoToggle">${autoPaused?'▶ ऑटो रिवील चालू करें':'⏸ ऑटो रिवील रोकें'}</button><button class="secondary" id="remember">✓ याद हो गया</button><button class="outline" id="again">↻ फिर से देखें</button><button class="outline" id="editQ">संपादित करें</button></div></div>`:`<div class="panel shelf-empty">इस सबटॉपिक में प्रश्न नहीं मिले।</div>`}`;
 }
 $('#content').innerHTML=`<div class="panel bookshelf-panel">${crumbs}${body}</div>`;
 document.querySelectorAll('[data-level]').forEach(b=>b.onclick=()=>{const level=b.dataset.level;shelf.level=level;if(level==='grade'){shelf.grade=shelf.subject=shelf.book=shelf.chapter=shelf.topic=shelf.subtopic=''}if(level==='book'){shelf.subject=shelf.book=shelf.chapter=shelf.topic=shelf.subtopic=''}if(level==='chapter'){shelf.chapter=shelf.topic=shelf.subtopic=''}if(level==='topic'){shelf.topic=shelf.subtopic=''}index=0;revealed=0;renderRevise()});
@@ -43,25 +43,8 @@ $('#autoToggle')?.addEventListener('click',()=>{autoPaused=!autoPaused;renderRev
 $('#next')?.addEventListener('click',()=>{index=(index+1)%list.length;revealed=0;renderRevise()});
 $('#remember')?.addEventListener('click',()=>{seen[q.id]='याद';saveSeen();if(index<list.length-1){index++;revealed=0}renderRevise()});
 $('#again')?.addEventListener('click',()=>{revealed=0;renderRevise()});
+$('#editQ')?.addEventListener('click',()=>startEdit(q.id));
 if(autoScroll && revealed>0){requestAnimationFrame(()=>{const actions=document.querySelector('.actions');if(actions)actions.scrollIntoView({behavior:'smooth',block:'end'});});}
-}
-function parseTxtQuestions(text){
-  const rows=String(text||'').replace(/\r/g,'').replace(/[,，।]\s*/g,'\n').split('\n');
-  const parsed=[];let current=null;let mode='';
-  const flush=()=>{if(current){current.q=current.q.trim();current.a=current.a.map(x=>x.trim()).filter(Boolean);if(current.q&&current.a.length)parsed.push(current);current=null;mode='';}};
-  for(const raw of rows){
-    const line=raw.trim();
-    const qm=line.match(/^(?:प्रश्न|प्रश्न\s*\d+|Q(?:uestion)?\s*\d*)\s*[:：.)-]\s*(.*)$/i);
-    const am=line.match(/^(?:उत्तर|Answer|Ans)\s*[:：]\s*(.*)$/i);
-    if(qm){flush();current={q:qm[1].trim(),a:[]};mode='q';continue;}
-    if(am){if(!current)current={q:'',a:[]};mode='a';if(am[1].trim())current.a.push(am[1].trim());continue;}
-    if(!line){continue;}
-    if(!current)continue;
-    if(mode==='q'){current.q+=(current.q?'\n':'')+line;}
-    else if(mode==='a'){current.a.push(line);}
-  }
-  flush();
-  return parsed;
 }
 function renderManage(){
 const grouped={};
@@ -76,40 +59,20 @@ const folderHtml=Object.entries(groupBy(questions,q=>q.grade||'बिना क�
    const topics=groupBy(cqs,q=>topicOf(q));
    return `<details style="margin:10px 0 0 12px;border-left:3px solid var(--blue);padding:8px 0 0 12px"><summary style="cursor:pointer;font-weight:700;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><span>📂 ${esc(c)} (${cqs.length} प्रश्न)</span>${delBtn('chapter',{g,b,c},cqs.length,'अध्याय हटाएँ')}</summary>${Object.entries(topics).map(([t,tqs])=>{
     const subs=groupBy(tqs,q=>subtopicOf(q));
-    return `<details style="margin:8px 0 0 12px"><summary style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><span>🗂️ ${esc(t)} (${tqs.length} प्रश्न)</span>${delBtn('topic',{g,b,c,t},tqs.length,'टॉपिक हटाएँ')}</summary><div class="question-list" style="margin-top:8px">${Object.entries(subs).map(([sub,sqs])=>`<details style="margin:8px 0 0 10px"><summary style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><span>📄 ${esc(sub)} (${sqs.length} प्रश्न)</span>${delBtn('subtopic',{g,b,c,t,sub},sqs.length,'सबटॉपिक हटाएँ')}</summary>${sqs.map(q=>`<div class="qrow"><div><b>${esc(q.q)}</b><p>${esc(gradeOf(q))} · ${esc(subjectOf(q))} · ${esc(bookOf(q))}</p></div><button class="danger" data-delete="${q.id}">प्रश्न हटाएँ</button></div>`).join('')}</details>`).join('')}</div></details>`;
+    return `<details style="margin:8px 0 0 12px"><summary style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><span>🗂️ ${esc(t)} (${tqs.length} प्रश्न)</span>${delBtn('topic',{g,b,c,t},tqs.length,'टॉपिक हटाएँ')}</summary><div class="question-list" style="margin-top:8px">${Object.entries(subs).map(([sub,sqs])=>`<details style="margin:8px 0 0 10px"><summary style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><span>📄 ${esc(sub)} (${sqs.length} प्रश्न)</span>${delBtn('subtopic',{g,b,c,t,sub},sqs.length,'सबटॉपिक हटाएँ')}</summary>${sqs.map(q=>`<div class="qrow"><div><b>${esc(q.q)}</b><p>${esc(gradeOf(q))} · ${esc(subjectOf(q))} · ${esc(bookOf(q))}</p></div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="secondary" data-edit="${q.id}">संपादित करें</button><button class="danger" data-delete="${q.id}">हटाएँ</button></div></div>`).join('')}</details>`).join('')}</div></details>`;
    }).join('')}</details>`;
   }).join('')}</details>`;
  }).join('')}</details>`;
 }).join('');
-const bookOptions=[...new Set(questions.map(bookOf))];
+const bookOptions=[...new Set(questions.map(bookOf))];let editQ=editId?questions.find(x=>x.id===editId):null;if(!editQ)editId=null;
 $('#content').innerHTML=`
-<div class="panel"><h2>📍 कहाँ जोड़ना है?</h2><p class="hint">पहले यहाँ जगह चुनें, फिर नीचे Bulk Import या एक प्रश्न जोड़ें। पुराने फ़ोल्डर लिस्ट से चुनें, नया बनाना हो तो “➕ नया लिखें” चुनें। चुनी हुई जगह बनी रहेगी, इसलिए अगला import भी वहीं होगा।</p><div id="picker"></div></div>
-<div class="panel"><h2>📚 Bulk Import (TXT से कई प्रश्न)</h2>
-<p class="hint">TXT के सभी प्रश्न ऊपर “कहाँ जोड़ना है?” में चुनी गई जगह पर Import होंगे।</p>
-<div class="field" style="margin:12px 0"><label>TXT फ़ाइल चुनें (वैकल्पिक)</label><input id="txtFile" type="file" accept=".txt,text/plain"></div>
-<div class="field"><label>या प्रश्न यहाँ पेस्ट करें</label><textarea id="bulkText" rows="9" placeholder="प्रश्न: प्रकाश संश्लेषण क्या है?\nउत्तर:\nहरे पौधे अपना भोजन बनाते हैं।\nयह प्रक्रिया सूर्य के प्रकाश की सहायता से होती है।\n\nप्रश्न: कोशिका क्या है?\nउत्तर:\nकोशिका जीवों की संरचनात्मक और क्रियात्मक इकाई है।"></textarea></div>
-<div class="actions"><button class="secondary" id="checkBulk">प्रश्नों की जाँच करें</button><button class="primary" id="importBulk">इस टॉपिक में Bulk Import करें</button></div>
-<div id="bulkStatus" class="notice">कक्षा, विषय, पुस्तक, अध्याय और टॉपिक भरें। सबटॉपिक वैकल्पिक है।</div>
-<details style="margin-top:12px"><summary style="cursor:pointer;font-weight:700">TXT का नमूना देखें</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere;background:var(--soft);padding:12px;border-radius:10px">प्रश्न: प्रकाश संश्लेषण क्या है?
-उत्तर:
-हरे पौधे अपना भोजन बनाते हैं।
-यह प्रक्रिया सूर्य के प्रकाश की सहायता से होती है।
-
-प्रश्न: कोशिका क्या है?
-उत्तर:
-कोशिका जीवों की संरचनात्मक और क्रियात्मक इकाई है।</pre></details>
-</div>
-<div class="panel"><h2>एक प्रश्न मैन्युअल जोड़ें</h2><form id="addForm" class="formgrid">
-<div class="field wide"><label>प्रश्न</label><textarea name="q" required rows="2" placeholder="लघु प्रश्न लिखें"></textarea></div>
-<div class="field wide"><label>उत्तर — हर पंक्ति अलग लाइन में लिखें</label><textarea name="a" required rows="5" placeholder="पहली पंक्ति\nदूसरी पंक्ति\nतीसरी पंक्ति"></textarea><span class="hint">Revision में एक क्लिक पर एक नई पंक्ति खुलेगी।</span></div>
-<div class="wide"><button class="primary" type="submit">＋ प्रश्न सेव करें</button></div><div class="wide success" id="addStatus"></div></form><div class="notice">कक्षा, विषय, पुस्तक, अध्याय, टॉपिक और सबटॉपिक अपनी जरूरत के अनुसार लिखें। पढ़ाई का क्रम: कक्षा → पुस्तक → अध्याय → टॉपिक → सबटॉपिक।</div></div>
-${trashHtml()}<div class="panel"><h2>📚 कक्षा → पुस्तक → अध्याय → टॉपिक → सबटॉपिक (${questions.length} प्रश्न)</h2>${folderHtml||'<p class="empty">अभी कोई प्रश्न नहीं है।</p>'}</div>`;
-renderPicker();bindTrash();const bulkText=$('#bulkText'),bulkStatus=$('#bulkStatus');
-$('#txtFile').addEventListener('change',async e=>{const file=e.target.files&&e.target.files[0];if(!file)return;bulkText.value=await file.text();bulkStatus.textContent=`फ़ाइल लोड हुई: ${file.name}। अब “प्रश्नों की जाँच करें” दबाएँ।`;});
-const getBulk=()=>parseTxtQuestions(bulkText.value);
-$('#checkBulk').onclick=()=>{const parsed=getBulk();bulkStatus.textContent=bulkText.value.trim()?`जाँच पूरी: ${parsed.length} प्रश्न और उनके उत्तर मिले। ${parsed.length?'अब पुस्तक और अध्याय का नाम जाँचकर Import करें।':'TXT का फ़ॉर्मेट नमूने के अनुसार जाँचें।'}`:'पहले TXT फ़ाइल चुनें या टेक्स्ट पेस्ट करें।';};
-$('#importBulk').onclick=()=>{const parsed=getBulk();if(!bulkText.value.trim()){bulkStatus.textContent='पहले TXT फ़ाइल चुनें या टेक्स्ट पेस्ट करें।';return}if(!parsed.length){bulkStatus.textContent='कोई पूरा प्रश्न-उत्तर नहीं मिला। नमूने के अनुसार “प्रश्न:” और “उत्तर:” लिखें।';return}const d=getDst();if(d.err){bulkStatus.textContent=d.err;return}dropPh(d.g,d.su,d.bk,d.ch,d.top,d.sub);const now=Date.now();const add=parsed.map((q,i)=>({id:now+i,grade:d.g,subject:d.su,book:d.bk,chapter:d.ch,topic:d.top,subtopic:d.sub,q:q.q,a:q.a}));questions.push(...add);save();shelf={level:'grade',grade:'',subject:'',book:'',chapter:'',topic:'',subtopic:''};index=0;revealed=0;const msg=`सफलता! ${add.length} प्रश्न “${d.bk} → ${d.ch} → ${d.top}${d.sub?' → '+d.sub:''}” में जुड़ गए।`;renderManage();$('#bulkStatus').textContent=msg;};
-$('#addForm').addEventListener('submit',e=>{e.preventDefault();const f=new FormData(e.target),a=String(f.get('a')).replace(/[,，।]\s*/g,'\n').split(/\n+/).map(x=>x.trim()).filter(Boolean),qt=String(f.get('q')).trim();const d=getDst();if(d.err){alert(d.err);return}if(!a.length||!qt)return;dropPh(d.g,d.su,d.bk,d.ch,d.top,d.sub);questions.push({id:Date.now(),grade:d.g,subject:d.su,book:d.bk,chapter:d.ch,topic:d.top,subtopic:d.sub,q:qt,a});save();shelf={level:'grade',grade:'',subject:'',book:'',chapter:'',topic:'',subtopic:''};index=0;revealed=0;renderManage();$('#addStatus').textContent=`✓ प्रश्न “${d.bk} → ${d.ch} → ${d.top}${d.sub?' → '+d.sub:''}” में जुड़ गया।`;});
+<div class="panel"><h2>कहाँ जोड़ना है?</h2><p class="hint">पहले यहाँ जगह चुनें, फिर नीचे प्रश्न लिखकर सेव करें। पुराने फ़ोल्डर लिस्ट से चुनें, नया बनाना हो तो “➕ नया लिखें” चुनें। चुनी हुई जगह बनी रहेगी, इसलिए अगला import भी वहीं होगा।</p><div id="picker"></div></div>
+<div class="panel"><h2>${editQ?'प्रश्न संपादित करें':'प्रश्न जोड़ें'}</h2><form id="addForm" class="formgrid">
+<div class="field wide"><label>प्रश्न</label><textarea name="q" required rows="2" placeholder="लघु प्रश्न लिखें">${editQ?esc(editQ.q):''}</textarea></div>
+<div class="field wide"><label>उत्तर — हर पंक्ति अलग लाइन में लिखें</label><textarea name="a" required rows="6" placeholder="पहली पंक्ति&#10;दूसरी पंक्ति&#10;तीसरी पंक्ति">${editQ?esc(editQ.a.join('\n')):''}</textarea><span class="hint">Revision में एक क्लिक पर एक नई पंक्ति खुलेगी।</span></div>
+<div class="wide"><button class="primary" type="submit">${editQ?'बदलाव सेव करें':'＋ प्रश्न सेव करें'}</button>${editQ?' <button type="button" class="outline" id="cancelEdit">रद्द करें</button>':''}</div><div class="wide success" id="addStatus"></div></form><div class="notice">कक्षा, विषय, पुस्तक, अध्याय, टॉपिक और सबटॉपिक अपनी जरूरत के अनुसार लिखें। पढ़ाई का क्रम: कक्षा → पुस्तक → अध्याय → टॉपिक → सबटॉपिक।</div></div>
+${trashHtml()}<div class="panel"><h2>कक्षा → पुस्तक → अध्याय → टॉपिक → सबटॉपिक (${questions.length} प्रश्न)</h2>${folderHtml||'<p class="empty">अभी कोई प्रश्न नहीं है।</p>'}</div>`;
+renderPicker();bindTrash();bindEdit();$('#cancelEdit')?.addEventListener('click',()=>{editId=null;renderManage()});$('#addForm').addEventListener('submit',e=>{e.preventDefault();const f=new FormData(e.target),raw=String(f.get('a')),qt=String(f.get('q')).trim();const a=(editId?raw:raw.replace(/[,，।]\s*/g,'\n')).split(/\n+/).map(x=>x.trim()).filter(Boolean);const d=getDst();if(d.err){alert(d.err);return}if(!a.length||!qt)return;let msg;if(editId){const i=questions.findIndex(x=>x.id===editId);if(i>=0){const nq={...questions[i],grade:d.g,subject:d.su,book:d.bk,chapter:d.ch,topic:d.top,subtopic:d.sub,q:qt,a};delete nq.ph;questions[i]=nq;dropPh(d.g,d.su,d.bk,d.ch,d.top,d.sub)}editId=null;msg='✓ बदलाव सेव हो गया।'}else{dropPh(d.g,d.su,d.bk,d.ch,d.top,d.sub);questions.push({id:Date.now(),grade:d.g,subject:d.su,book:d.bk,chapter:d.ch,topic:d.top,subtopic:d.sub,q:qt,a});msg=`✓ प्रश्न “${d.bk} → ${d.ch} → ${d.top}${d.sub?' → '+d.sub:''}” में जुड़ गया।`}save();shelf={level:'grade',grade:'',subject:'',book:'',chapter:'',topic:'',subtopic:''};index=0;revealed=0;renderManage();$('#addStatus').textContent=msg;});
 document.querySelectorAll('[data-delete-level]').forEach(b=>b.addEventListener('click',e=>{
 e.preventDefault();e.stopPropagation();
 let target;try{target=JSON.parse(b.dataset.deleteLevel)}catch{return}
@@ -135,7 +98,7 @@ if(confirm(`क्या आप ${names[target.level]} “${target[target.level=
 document.querySelectorAll('[data-delete]').forEach(b=>b.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();if(confirm('क्या यह प्रश्न हटाना है?')){const it=questions.filter(q=>String(q.id)===String(b.dataset.delete));moveToTrash('प्रश्न: '+(it[0]?it[0].q.slice(0,40):''),it);questions=questions.filter(q=>String(q.id)!==String(b.dataset.delete));save();renderManage()}}));
 }
 function renderReport(){let known=Object.keys(seen).filter(id=>seen[id]==='याद').length;$('#content').innerHTML=`<div class="panel"><h2>आपकी Revision रिपोर्ट</h2><div class="stats"><div class="stat"><b>${questions.filter(q=>!q.ph).length}</b><span>कुल प्रश्न</span></div><div class="stat"><b>${known}</b><span>याद हो गए</span></div><div class="stat"><b>${Math.max(0,questions.filter(q=>!q.ph).length-known)}</b><span>बाकी प्रश्न</span></div></div><div class="actions"><button class="secondary" id="clearSeen">रिपोर्ट रीसेट करें</button><button class="outline" id="export">प्रश्नों का बैकअप डाउनलोड करें</button><label class="tab" style="display:inline-flex;align-items:center;cursor:pointer">बैकअप अपलोड करें<input id="import" type="file" accept="application/json" style="display:none"></label></div><div class="notice">प्रश्न कक्षा → पुस्तक → अध्याय → टॉपिक → सबटॉपिक के अनुसार व्यवस्थित हैं। डेटा MongoDB सर्वर पर सेव होता है, इसलिए हर डिवाइस पर एक जैसा दिखेगा।</div></div>`;$('#clearSeen').onclick=()=>{seen={};saveSeen();renderReport()};$('#export').onclick=()=>{let blob=new Blob([JSON.stringify(questions,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='shadab-revision-backup.json';a.click();URL.revokeObjectURL(url)};$('#import').onchange=async e=>{try{let data=JSON.parse(await e.target.files[0].text());if(Array.isArray(data)&&data.every(q=>q.q&&Array.isArray(q.a))){questions=data;save();renderReport()}else alert('यह सही प्रश्न बैकअप फ़ाइल नहीं है।')}catch{alert('फ़ाइल पढ़ी नहीं जा सकी।')}}}
-document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{tab=b.dataset.tab;render()}));boot();
+document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{tab=b.dataset.tab;editId=null;render()}));boot();
 // Auto-reveal one answer line every 10 seconds while Revision is open and not paused.
 setInterval(()=>{if(tab!=='revise'||autoPaused||shelf.level!=='study')return;const list=filtered();const q=list[index];if(q&&revealed<q.a.length){revealed++;renderRevise(true);}},10000);
 
@@ -265,7 +228,7 @@ function restoreTrash(tid){
 }
 function trashHtml(){
   const rows=trash.map(t=>`<div class="qrow"><div><b>${esc(t.label)}</b><p>${t.items.length} प्रश्न · ${esc(new Date(t.at).toLocaleString('hi-IN'))}</p></div><div class="actions" style="margin:0"><button class="secondary" data-restore="${t.tid}">↩ वापस लाएँ</button><button class="danger" data-purge="${t.tid}">हमेशा के लिए हटाएँ</button></div></div>`).join('');
-  return `<div class="panel"><h2>🗑️ कचरा पेटी (${trash.length})</h2>${trash.length?`<p class="hint">गलती से हटाई चीज़ें यहाँ रहती हैं। जो चाहिए सिर्फ़ वही वापस लाएँ।</p><div class="question-list">${rows}</div><div class="actions"><button class="outline" id="emptyTrash">कचरा पेटी खाली करें</button></div>`:'<p class="hint">अभी कुछ नहीं हटाया गया। हटाई हुई किताब, अध्याय, टॉपिक या प्रश्न यहाँ मिलेंगे।</p>'}</div>`;
+  return `<div class="panel"><h2>कचरा पेटी (${trash.length})</h2>${trash.length?`<p class="hint">गलती से हटाई चीज़ें यहाँ रहती हैं। जो चाहिए सिर्फ़ वही वापस लाएँ।</p><div class="question-list">${rows}</div><div class="actions"><button class="outline" id="emptyTrash">कचरा पेटी खाली करें</button></div>`:'<p class="hint">अभी कुछ नहीं हटाया गया। हटाई हुई किताब, अध्याय, टॉपिक या प्रश्न यहाँ मिलेंगे।</p>'}</div>`;
 }
 function bindTrash(){
   document.querySelectorAll('[data-restore]').forEach(b=>b.onclick=()=>restoreTrash(Number(b.dataset.restore)));
@@ -273,3 +236,14 @@ function bindTrash(){
   const e=document.getElementById('emptyTrash');
   if(e)e.onclick=()=>{if(confirm('पूरी कचरा पेटी खाली करें? ये चीज़ें फिर वापस नहीं आएँगी।')){trash=[];saveTrash();renderManage()}};
 }
+
+/* ===== प्रश्न संपादित करना ===== */
+function startEdit(id){
+  const q=questions.find(x=>String(x.id)===String(id));if(!q)return;
+  editId=q.id;
+  dst={grade:gradeOf(q),book:bookOf(q),subject:subjectOf(q),chapter:chapterOf(q),topic:topicOf(q),subtopic:q.subtopic||'',nw:{}};
+  tab='manage';render();
+  const f=document.getElementById('addForm');
+  if(f&&f.scrollIntoView)f.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function bindEdit(){document.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>startEdit(b.dataset.edit))}
