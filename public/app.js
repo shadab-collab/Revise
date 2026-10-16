@@ -1,4 +1,4 @@
-let questions=[],seen={},ready=false,trash=[],editId=null;let tab='revise',grade='सभी कक्षाएँ',book='सभी पुस्तकें',subject='सभी विषय',chapter='सभी टॉपिक',subtopic='सभी सबटॉपिक',index=0,revealed=0,autoPaused=false;let shelf={level:'grade',grade:'',subject:'',book:'',chapter:'',topic:'',subtopic:''};
+let questions=[],seen={},ready=false,trash=[],editId=null;const openKeys=new Set();let tab='revise',grade='सभी कक्षाएँ',book='सभी पुस्तकें',subject='सभी विषय',chapter='सभी टॉपिक',subtopic='सभी सबटॉपिक',index=0,revealed=0,autoPaused=false;let shelf={level:'grade',grade:'',subject:'',book:'',chapter:'',topic:'',subtopic:''};
 const $=s=>document.querySelector(s);const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));const save=()=>{try{localStorage.setItem('shadabRevisionQuestions',JSON.stringify(questions))}catch(e){}queueSync()};const gradeOf=q=>q.grade||'बिना कक्षा',subjectOf=q=>q.subject||'सामान्य';const bookOf=q=>q.book||`${q.subject||'सामान्य'} — सामान्य पुस्तक`;const chapterOf=q=>q.chapter||'बिना अध्याय';const topicOf=q=>q.topic||'सामान्य प्रश्न';const subtopicOf=q=>q.subtopic||'बिना सबटॉपिक';const filtered=()=>questions.filter(q=>gradeOf(q)===shelf.grade&&subjectOf(q)===shelf.subject&&bookOf(q)===shelf.book&&chapterOf(q)===shelf.chapter&&topicOf(q)===shelf.topic&&subtopicOf(q)===shelf.subtopic);
 function options(values,current){return values.map(v=>`<option ${v===current?'selected':''} value="${esc(v)}">${esc(v)}</option>`).join('')}
 function render(){document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));if(tab==='revise')renderRevise();if(tab==='manage')renderManage();if(tab==='report')renderReport()}
@@ -46,20 +46,39 @@ $('#again')?.addEventListener('click',()=>{revealed=0;renderRevise()});
 $('#editQ')?.addEventListener('click',()=>startEdit(q.id));
 if(autoScroll && revealed>0){requestAnimationFrame(()=>{const actions=document.querySelector('.actions');if(actions)actions.scrollIntoView({behavior:'smooth',block:'end'});});}
 }
+function parseTxtQuestions(text){
+  const rows=String(text||'').replace(/\r/g,'').replace(/[,，।]\s*/g,'\n').split('\n');
+  const parsed=[];let current=null;let mode='';
+  const flush=()=>{if(current){current.q=current.q.trim();current.a=current.a.map(x=>x.trim()).filter(Boolean);if(current.q&&current.a.length)parsed.push(current);current=null;mode='';}};
+  for(const raw of rows){
+    const line=raw.trim();
+    const qm=line.match(/^(?:प्रश्न|प्रश्न\s*\d+|Q(?:uestion)?\s*\d*)\s*[:：.)-]\s*(.*)$/i);
+    const am=line.match(/^(?:उत्तर|Answer|Ans)\s*[:：]\s*(.*)$/i);
+    if(qm){flush();current={q:qm[1].trim(),a:[]};mode='q';continue;}
+    if(am){if(!current)current={q:'',a:[]};mode='a';if(am[1].trim())current.a.push(am[1].trim());continue;}
+    if(!line){continue;}
+    if(!current)continue;
+    if(mode==='q'){current.q+=(current.q?'\n':'')+line;}
+    else if(mode==='a'){current.a.push(line);}
+  }
+  flush();
+  return parsed;
+}
 function renderManage(){
 const grouped={};
 questions.forEach(q=>{const g=q.grade||'बिना कक्षा',b=bookOf(q),c=chapterOf(q),t=topicOf(q);grouped[g]??={};grouped[g][b]??={};grouped[g][b][c]??={};grouped[g][b][c][t]??=[];grouped[g][b][c][t].push(q)});
 const delBtn=(level,values,count,label)=>`<button type="button" class="danger" data-delete-level="${esc(JSON.stringify({level,...values}))}" style="padding:6px 9px;font-size:12px;white-space:nowrap">🗑️ ${label} (${count})</button>`;
 const groupBy=(arr,keyFn)=>{const out={};arr.forEach(item=>{const k=keyFn(item);(out[k]??=[]).push(item)});return out};
+const ok=(...p)=>{const k=p.join('␟');return `data-k="${esc(k)}"${openKeys.has(k)?' open':''}`};
 const folderHtml=Object.entries(groupBy(questions,q=>q.grade||'बिना कक्षा')).sort((a,b)=>a[0].localeCompare(b[0])).map(([g,gqs])=>{
  const books=groupBy(gqs,q=>bookOf(q));
  return `<details class="panel" open><summary style="cursor:pointer;font-weight:800;font-size:17px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><span>📁 ${esc(g)} (${gqs.length} प्रश्न)</span>${delBtn('grade',{g},gqs.length,'कक्षा हटाएँ')}</summary>${Object.entries(books).map(([b,bqs])=>{
   const chapters=groupBy(bqs,q=>chapterOf(q));
-  return `<details style="margin:12px 0 0 12px;border-left:4px solid var(--wood);padding:10px 0 0 12px"><summary style="cursor:pointer;font-weight:800;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><span>📚 ${esc(b)} (${bqs.length} प्रश्न)</span>${delBtn('book',{g,b},bqs.length,'किताब हटाएँ')}</summary>${Object.entries(chapters).map(([c,cqs])=>{
+  return `<details ${ok(g,b)} style="margin:12px 0 0 12px;border-left:4px solid var(--wood);padding:10px 0 0 12px"><summary style="cursor:pointer;font-weight:800;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><span>📚 ${esc(b)} (${bqs.length} प्रश्न)</span>${delBtn('book',{g,b},bqs.length,'किताब हटाएँ')}</summary>${Object.entries(chapters).map(([c,cqs])=>{
    const topics=groupBy(cqs,q=>topicOf(q));
-   return `<details style="margin:10px 0 0 12px;border-left:3px solid var(--blue);padding:8px 0 0 12px"><summary style="cursor:pointer;font-weight:700;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><span>📂 ${esc(c)} (${cqs.length} प्रश्न)</span>${delBtn('chapter',{g,b,c},cqs.length,'अध्याय हटाएँ')}</summary>${Object.entries(topics).map(([t,tqs])=>{
+   return `<details ${ok(g,b,c)} style="margin:10px 0 0 12px;border-left:3px solid var(--blue);padding:8px 0 0 12px"><summary style="cursor:pointer;font-weight:700;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><span>📂 ${esc(c)} (${cqs.length} प्रश्न)</span>${delBtn('chapter',{g,b,c},cqs.length,'अध्याय हटाएँ')}</summary>${Object.entries(topics).map(([t,tqs])=>{
     const subs=groupBy(tqs,q=>subtopicOf(q));
-    return `<details style="margin:8px 0 0 12px"><summary style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><span>🗂️ ${esc(t)} (${tqs.length} प्रश्न)</span>${delBtn('topic',{g,b,c,t},tqs.length,'टॉपिक हटाएँ')}</summary><div class="question-list" style="margin-top:8px">${Object.entries(subs).map(([sub,sqs])=>`<details style="margin:8px 0 0 10px"><summary style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><span>📄 ${esc(sub)} (${sqs.length} प्रश्न)</span>${delBtn('subtopic',{g,b,c,t,sub},sqs.length,'सबटॉपिक हटाएँ')}</summary>${sqs.map(q=>`<div class="qrow"><div><b>${esc(q.q)}</b><p>${esc(gradeOf(q))} · ${esc(subjectOf(q))} · ${esc(bookOf(q))}</p></div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="secondary" data-edit="${q.id}">संपादित करें</button><button class="danger" data-delete="${q.id}">हटाएँ</button></div></div>`).join('')}</details>`).join('')}</div></details>`;
+    return `<details ${ok(g,b,c,t)} style="margin:8px 0 0 12px"><summary style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><span>🗂️ ${esc(t)} (${tqs.length} प्रश्न)</span>${delBtn('topic',{g,b,c,t},tqs.length,'टॉपिक हटाएँ')}</summary><div class="question-list" style="margin-top:8px">${Object.entries(subs).map(([sub,sqs])=>`<details ${ok(g,b,c,t,sub)} style="margin:8px 0 0 10px"><summary style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><span>📄 ${esc(sub)} (${sqs.length} प्रश्न)</span>${delBtn('subtopic',{g,b,c,t,sub},sqs.length,'सबटॉपिक हटाएँ')}</summary>${sqs.map((q,i)=>`<div class="qrow"><div><b>${q.ph?'':(i+1)+'. '}${esc(q.q)}</b><p>${esc(gradeOf(q))} · ${esc(subjectOf(q))} · ${esc(bookOf(q))}</p></div><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${q.ph?'':moveCtl(q,i,sqs.length)}<button class="secondary" data-edit="${q.id}">संपादित करें</button><button class="danger" data-delete="${q.id}">हटाएँ</button></div></div>`).join('')}</details>`).join('')}</div></details>`;
    }).join('')}</details>`;
   }).join('')}</details>`;
  }).join('')}</details>`;
@@ -67,12 +86,29 @@ const folderHtml=Object.entries(groupBy(questions,q=>q.grade||'बिना क�
 const bookOptions=[...new Set(questions.map(bookOf))];let editQ=editId?questions.find(x=>x.id===editId):null;if(!editQ)editId=null;
 $('#content').innerHTML=`
 <div class="panel"><h2>कहाँ जोड़ना है?</h2><p class="hint">पहले यहाँ जगह चुनें, फिर नीचे प्रश्न लिखकर सेव करें। पुराने फ़ोल्डर लिस्ट से चुनें, नया बनाना हो तो “➕ नया लिखें” चुनें। चुनी हुई जगह बनी रहेगी, इसलिए अगला import भी वहीं होगा।</p><div id="picker"></div></div>
+<div class="panel"><h2>Bulk Import (पेस्ट करके कई प्रश्न)</h2>
+<p class="hint">ऊपर “कहाँ जोड़ना है?” में जगह चुनें, फिर प्रश्न नीचे पेस्ट करें। नए प्रश्न उस सबटॉपिक/टॉपिक के <b>अंत में</b> जुड़ेंगे। बाद में नीचे की सूची में ▲ ▼ या स्थान संख्या से ऊपर-नीचे कर सकते हैं।</p>
+<div class="field"><label>प्रश्न यहाँ पेस्ट करें</label><textarea id="bulkText" rows="9" placeholder="प्रश्न: प्रकाश संश्लेषण क्या है?&#10;उत्तर:&#10;हरे पौधे अपना भोजन बनाते हैं।&#10;यह प्रक्रिया सूर्य के प्रकाश की सहायता से होती है।&#10;&#10;प्रश्न: कोशिका क्या है?&#10;उत्तर:&#10;कोशिका जीवों की संरचनात्मक और क्रियात्मक इकाई है।"></textarea></div>
+<div class="actions"><button class="secondary" id="checkBulk">प्रश्नों की जाँच करें</button><button class="primary" id="importBulk">चुनी जगह में Bulk Import करें</button></div>
+<div id="bulkStatus" class="notice">पहले जगह चुनें, फिर प्रश्न पेस्ट करके “जाँच करें” दबाएँ।</div>
+<details style="margin-top:12px"><summary style="cursor:pointer;font-weight:700">पेस्ट करने का नमूना देखें</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere;background:var(--soft);padding:12px;border-radius:10px">प्रश्न: प्रकाश संश्लेषण क्या है?
+उत्तर:
+हरे पौधे अपना भोजन बनाते हैं।
+यह प्रक्रिया सूर्य के प्रकाश की सहायता से होती है।
+
+प्रश्न: कोशिका क्या है?
+उत्तर:
+कोशिका जीवों की संरचनात्मक और क्रियात्मक इकाई है।</pre></details>
+</div>
 <div class="panel"><h2>${editQ?'प्रश्न संपादित करें':'प्रश्न जोड़ें'}</h2><form id="addForm" class="formgrid">
 <div class="field wide"><label>प्रश्न</label><textarea name="q" required rows="2" placeholder="लघु प्रश्न लिखें">${editQ?esc(editQ.q):''}</textarea></div>
 <div class="field wide"><label>उत्तर — हर पंक्ति अलग लाइन में लिखें</label><textarea name="a" required rows="6" placeholder="पहली पंक्ति&#10;दूसरी पंक्ति&#10;तीसरी पंक्ति">${editQ?esc(editQ.a.join('\n')):''}</textarea><span class="hint">Revision में एक क्लिक पर एक नई पंक्ति खुलेगी।</span></div>
 <div class="wide"><button class="primary" type="submit">${editQ?'बदलाव सेव करें':'＋ प्रश्न सेव करें'}</button>${editQ?' <button type="button" class="outline" id="cancelEdit">रद्द करें</button>':''}</div><div class="wide success" id="addStatus"></div></form><div class="notice">कक्षा, विषय, पुस्तक, अध्याय, टॉपिक और सबटॉपिक अपनी जरूरत के अनुसार लिखें। पढ़ाई का क्रम: कक्षा → पुस्तक → अध्याय → टॉपिक → सबटॉपिक।</div></div>
 ${trashHtml()}<div class="panel"><h2>कक्षा → पुस्तक → अध्याय → टॉपिक → सबटॉपिक (${questions.length} प्रश्न)</h2>${folderHtml||'<p class="empty">अभी कोई प्रश्न नहीं है।</p>'}</div>`;
-renderPicker();bindTrash();bindEdit();$('#cancelEdit')?.addEventListener('click',()=>{editId=null;renderManage()});$('#addForm').addEventListener('submit',e=>{e.preventDefault();const f=new FormData(e.target),raw=String(f.get('a')),qt=String(f.get('q')).trim();const a=(editId?raw:raw.replace(/[,，।]\s*/g,'\n')).split(/\n+/).map(x=>x.trim()).filter(Boolean);const d=getDst();if(d.err){alert(d.err);return}if(!a.length||!qt)return;let msg;if(editId){const i=questions.findIndex(x=>x.id===editId);if(i>=0){const nq={...questions[i],grade:d.g,subject:d.su,book:d.bk,chapter:d.ch,topic:d.top,subtopic:d.sub,q:qt,a};delete nq.ph;questions[i]=nq;dropPh(d.g,d.su,d.bk,d.ch,d.top,d.sub)}editId=null;msg='✓ बदलाव सेव हो गया।'}else{dropPh(d.g,d.su,d.bk,d.ch,d.top,d.sub);questions.push({id:Date.now(),grade:d.g,subject:d.su,book:d.bk,chapter:d.ch,topic:d.top,subtopic:d.sub,q:qt,a});msg=`✓ प्रश्न “${d.bk} → ${d.ch} → ${d.top}${d.sub?' → '+d.sub:''}” में जुड़ गया।`}save();shelf={level:'grade',grade:'',subject:'',book:'',chapter:'',topic:'',subtopic:''};index=0;revealed=0;renderManage();$('#addStatus').textContent=msg;});
+renderPicker();bindTrash();bindEdit();bindMove();document.querySelectorAll('details[data-k]').forEach(d=>d.addEventListener('toggle',()=>{d.open?openKeys.add(d.dataset.k):openKeys.delete(d.dataset.k)}));$('#cancelEdit')?.addEventListener('click',()=>{editId=null;renderManage()});const bulkText=$('#bulkText'),bulkStatus=$('#bulkStatus');const getBulk=()=>parseTxtQuestions(bulkText.value);
+$('#checkBulk').onclick=()=>{const parsed=getBulk();bulkStatus.textContent=bulkText.value.trim()?`जाँच पूरी: ${parsed.length} प्रश्न और उनके उत्तर मिले। ${parsed.length?'अब जगह देखकर Import करें।':'फ़ॉर्मेट नमूने के अनुसार जाँचें।'}`:'पहले प्रश्न पेस्ट करें।';};
+$('#importBulk').onclick=()=>{const parsed=getBulk();if(!bulkText.value.trim()){bulkStatus.textContent='पहले प्रश्न पेस्ट करें।';return}if(!parsed.length){bulkStatus.textContent='कोई पूरा प्रश्न-उत्तर नहीं मिला। नमूने के अनुसार “प्रश्न:” और “उत्तर:” लिखें।';return}const d=getDst();if(d.err){bulkStatus.textContent=d.err;return}dropPh(d.g,d.su,d.bk,d.ch,d.top,d.sub);const now=Date.now();const add=parsed.map((q,i)=>({id:now+i,grade:d.g,subject:d.su,book:d.bk,chapter:d.ch,topic:d.top,subtopic:d.sub,q:q.q,a:q.a}));questions.push(...add);save();shelf={level:'grade',grade:'',subject:'',book:'',chapter:'',topic:'',subtopic:''};index=0;revealed=0;const msg=`सफलता! ${add.length} प्रश्न “${d.bk} → ${d.ch} → ${d.top}${d.sub?' → '+d.sub:''}” के अंत में जुड़ गए।`;renderManage();$('#bulkStatus').textContent=msg;};
+$('#addForm').addEventListener('submit',e=>{e.preventDefault();const f=new FormData(e.target),raw=String(f.get('a')),qt=String(f.get('q')).trim();const a=(editId?raw:raw.replace(/[,，।]\s*/g,'\n')).split(/\n+/).map(x=>x.trim()).filter(Boolean);const d=getDst();if(d.err){alert(d.err);return}if(!a.length||!qt)return;let msg;if(editId){const i=questions.findIndex(x=>x.id===editId);if(i>=0){const nq={...questions[i],grade:d.g,subject:d.su,book:d.bk,chapter:d.ch,topic:d.top,subtopic:d.sub,q:qt,a};delete nq.ph;questions[i]=nq;dropPh(d.g,d.su,d.bk,d.ch,d.top,d.sub)}editId=null;msg='✓ बदलाव सेव हो गया।'}else{dropPh(d.g,d.su,d.bk,d.ch,d.top,d.sub);questions.push({id:Date.now(),grade:d.g,subject:d.su,book:d.bk,chapter:d.ch,topic:d.top,subtopic:d.sub,q:qt,a});msg=`✓ प्रश्न “${d.bk} → ${d.ch} → ${d.top}${d.sub?' → '+d.sub:''}” में जुड़ गया।`}save();shelf={level:'grade',grade:'',subject:'',book:'',chapter:'',topic:'',subtopic:''};index=0;revealed=0;renderManage();$('#addStatus').textContent=msg;});
 document.querySelectorAll('[data-delete-level]').forEach(b=>b.addEventListener('click',e=>{
 e.preventDefault();e.stopPropagation();
 let target;try{target=JSON.parse(b.dataset.deleteLevel)}catch{return}
@@ -116,7 +152,7 @@ function queueSync(){if(!ready)return;dirty=true;setStatus('⏳ सेव हो
 async function flush(){
   if(syncing){syncT=setTimeout(flush,700);return}
   syncing=true;dirty=false;
-  try{await api('/api/questions',{method:'PUT',body:JSON.stringify({questions})});setStatus('☁️ सर्वर पर सेव हो गया')}
+  try{await api('/api/questions',{method:'PUT',body:JSON.stringify({questions:questions.map((q,i)=>({...q,pos:i}))})});setStatus('☁️ सर्वर पर सेव हो गया')}
   catch(e){dirty=true;setStatus('⚠️ सर्वर पर सेव नहीं हुआ — दोबारा कोशिश होगी')}
   syncing=false;
 }
@@ -247,3 +283,28 @@ function startEdit(id){
   if(f&&f.scrollIntoView)f.scrollIntoView({behavior:'smooth',block:'start'});
 }
 function bindEdit(){document.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>startEdit(b.dataset.edit))}
+
+/* ===== प्रश्नों का क्रम: ऊपर-नीचे / स्थान संख्या ===== */
+function samePath(a,b){return gradeOf(a)===gradeOf(b)&&subjectOf(a)===subjectOf(b)&&bookOf(a)===bookOf(b)&&chapterOf(a)===chapterOf(b)&&topicOf(a)===topicOf(b)&&subtopicOf(a)===subtopicOf(b)}
+function groupIdxs(q){const r=[];questions.forEach((x,i)=>{if(samePath(x,q))r.push(i)});return r}
+function posOf(id){const q=questions.find(x=>String(x.id)===String(id));if(!q)return 0;return groupIdxs(q).findIndex(i=>questions[i].id===q.id)+1}
+function moveQ(id,to){
+  const q=questions.find(x=>String(x.id)===String(id));if(!q)return;
+  const idxs=groupIdxs(q),items=idxs.map(i=>questions[i]);
+  const from=items.findIndex(x=>x.id===q.id);
+  const t=Math.max(1,Math.min(items.length,Math.round(Number(to))||1))-1;
+  if(t===from)return;
+  items.splice(from,1);items.splice(t,0,q);
+  idxs.forEach((qi,k)=>{questions[qi]=items[k]});
+  save();renderManage();
+}
+function moveCtl(q,i,n){
+  return `<button class="outline" data-up="${q.id}" title="ऊपर" ${i===0?'disabled':''}>▲</button><button class="outline" data-down="${q.id}" title="नीचे" ${i===n-1?'disabled':''}>▼</button><input type="number" min="1" max="${n}" value="${i+1}" data-pos="${q.id}" title="स्थान संख्या" style="width:66px;padding:8px"><button class="outline" data-go="${q.id}">जाएँ</button>`;
+}
+function bindMove(){
+  document.querySelectorAll('[data-up]').forEach(b=>b.onclick=()=>moveQ(b.dataset.up,posOf(b.dataset.up)-1));
+  document.querySelectorAll('[data-down]').forEach(b=>b.onclick=()=>moveQ(b.dataset.down,posOf(b.dataset.down)+1));
+  const go=id=>{const inp=document.querySelector(`[data-pos="${id}"]`);if(inp)moveQ(id,inp.value)};
+  document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));
+  document.querySelectorAll('[data-pos]').forEach(inp=>inp.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();go(inp.dataset.pos)}});
+}

@@ -34,7 +34,7 @@ app.get('/healthz', (req, res) => res.send('ok'));
 app.get('/api/data', async (req, res) => {
   try {
     const [questions, seenDoc, seededDoc, trashDoc] = await Promise.all([
-      Question.find({}, { _id: 0 }).sort({ id: 1 }).lean(),
+      Question.find({}, { _id: 0 }).sort({ pos: 1, id: 1 }).lean(),
       Meta.findById('seen').lean(),
       Meta.findById('seeded').lean(),
       Meta.findById('trash').lean(),
