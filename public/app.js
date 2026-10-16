@@ -83,7 +83,6 @@ const folderHtml=Object.entries(groupBy(questions,q=>q.grade||'बिना क�
 }).join('');
 const bookOptions=[...new Set(questions.map(bookOf))];
 $('#content').innerHTML=`
-<div class="panel"><h2>🎯 परीक्षा सिलेबस फ़ोल्डर</h2><p class="hint">यह बटन SSC CGL, CTET, BPSC और UPSC की किताबों, अध्यायों, टॉपिक और सबटॉपिक के <b>खाली फ़ोल्डर</b> बनाता है, ताकि हर बार नाम न लिखना पड़े। इन्हें नीचे “कहाँ जोड़ना है?” में चुनकर सीधे प्रश्न डालें। ये पहली बार अपने-आप जुड़ चुके हैं। ध्यान दें: यह बटन हटाए हुए <b>सारे</b> सिलेबस फ़ोल्डर वापस ला देता है। सिर्फ़ एक किताब, अध्याय या टॉपिक वापस चाहिए तो नीचे “🗑️ कचरा पेटी” से सिर्फ़ वही वापस लाएँ।</p><div class="actions"><button class="primary" id="addSyl">📥 सारे सिलेबस फ़ोल्डर जोड़ें</button></div><div id="sylStatus" class="notice">${sylSummary()}</div></div>
 <div class="panel"><h2>📍 कहाँ जोड़ना है?</h2><p class="hint">पहले यहाँ जगह चुनें, फिर नीचे Bulk Import या एक प्रश्न जोड़ें। पुराने फ़ोल्डर लिस्ट से चुनें, नया बनाना हो तो “➕ नया लिखें” चुनें। चुनी हुई जगह बनी रहेगी, इसलिए अगला import भी वहीं होगा।</p><div id="picker"></div></div>
 <div class="panel"><h2>📚 Bulk Import (TXT से कई प्रश्न)</h2>
 <p class="hint">TXT के सभी प्रश्न ऊपर “कहाँ जोड़ना है?” में चुनी गई जगह पर Import होंगे।</p>
@@ -105,7 +104,7 @@ $('#content').innerHTML=`
 <div class="field wide"><label>उत्तर — हर पंक्ति अलग लाइन में लिखें</label><textarea name="a" required rows="5" placeholder="पहली पंक्ति\nदूसरी पंक्ति\nतीसरी पंक्ति"></textarea><span class="hint">Revision में एक क्लिक पर एक नई पंक्ति खुलेगी।</span></div>
 <div class="wide"><button class="primary" type="submit">＋ प्रश्न सेव करें</button></div><div class="wide success" id="addStatus"></div></form><div class="notice">कक्षा, विषय, पुस्तक, अध्याय, टॉपिक और सबटॉपिक अपनी जरूरत के अनुसार लिखें। पढ़ाई का क्रम: कक्षा → पुस्तक → अध्याय → टॉपिक → सबटॉपिक।</div></div>
 ${trashHtml()}<div class="panel"><h2>📚 कक्षा → पुस्तक → अध्याय → टॉपिक → सबटॉपिक (${questions.length} प्रश्न)</h2>${folderHtml||'<p class="empty">अभी कोई प्रश्न नहीं है।</p>'}</div>`;
-renderPicker();bindTrash();$('#addSyl').onclick=()=>{if(!confirm('हटाए हुए सारे सिलेबस फ़ोल्डर वापस आ जाएँगे। सिर्फ़ एक किताब/अध्याय वापस चाहिए तो “कचरा पेटी” से लाएँ। फिर भी सब जोड़ें?'))return;const n=loadAll();renderManage();$('#sylStatus').textContent=(n?`✓ ${n} नए फ़ोल्डर जुड़े। `:'सब फ़ोल्डर पहले से मौजूद हैं। ')+sylSummary()};const bulkText=$('#bulkText'),bulkStatus=$('#bulkStatus');
+renderPicker();bindTrash();const bulkText=$('#bulkText'),bulkStatus=$('#bulkStatus');
 $('#txtFile').addEventListener('change',async e=>{const file=e.target.files&&e.target.files[0];if(!file)return;bulkText.value=await file.text();bulkStatus.textContent=`फ़ाइल लोड हुई: ${file.name}। अब “प्रश्नों की जाँच करें” दबाएँ।`;});
 const getBulk=()=>parseTxtQuestions(bulkText.value);
 $('#checkBulk').onclick=()=>{const parsed=getBulk();bulkStatus.textContent=bulkText.value.trim()?`जाँच पूरी: ${parsed.length} प्रश्न और उनके उत्तर मिले। ${parsed.length?'अब पुस्तक और अध्याय का नाम जाँचकर Import करें।':'TXT का फ़ॉर्मेट नमूने के अनुसार जाँचें।'}`:'पहले TXT फ़ाइल चुनें या टेक्स्ट पेस्ट करें।';};
