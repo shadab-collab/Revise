@@ -93,3 +93,22 @@ details>summary{list-style:revert}
 @keyframes nbblink{50%{opacity:0}}
 .nb-done{margin:0;font-size:18px;line-height:40px;font-weight:700;color:#15803d;font-family:"Noto Sans Devanagari",system-ui,sans-serif}
 @media(max-width:600px){.notebook{padding:40px 12px 44px 52px;min-height:300px}.notebook::before{left:38px}.nb-q{font-size:20px}.nb-line,.nb-ans-head{font-size:18px}.notebook{background-size:40px 170px,auto}}
+
+/* ---- प्रश्न-उत्तर स्क्रीन: डेस्कटॉप व्यू स्विच, जंप ---- */
+.study-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.study-bar .study-back{margin:0}
+.sw{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;color:var(--muted);user-select:none}
+.sw input{position:absolute;opacity:0;width:0;height:0}
+.sw-track{width:40px;height:22px;border-radius:20px;background:#cbd5e1;position:relative;transition:background .2s;flex:none}
+.sw-track::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:left .2s}
+.sw input:checked+.sw-track{background:var(--accent)}
+.sw input:checked+.sw-track::after{left:21px}
+.sw input:focus-visible+.sw-track{box-shadow:0 0 0 3px rgba(15,118,110,.25)}
+.jumpbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:16px;padding-top:14px;border-top:1px dashed var(--line);font-size:13px;color:var(--muted);font-weight:600}
+.jumpbar input{width:84px;padding:8px 10px}
+.deskwrap.deskview{width:980px;max-width:none}
+.deskview .study-card{padding:22px}
+.deskview .notebook{padding:40px 22px 44px 78px;min-height:340px;background-size:52px 170px,auto}
+.deskview .notebook::before{left:60px}
+.deskview .nb-q{font-size:24px}
+.deskview .nb-ans-head,.deskview .nb-line{font-size:21px}

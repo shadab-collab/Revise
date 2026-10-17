@@ -1,4 +1,4 @@
-let questions=[],seen={},ready=false,trash=[],editId=null;const openKeys=new Set();let typedLines=0,typedQ=null,typingNow=false,typingTimer=null;let tab='revise',grade='सभी कक्षाएँ',book='सभी पुस्तकें',subject='सभी विषय',chapter='सभी टॉपिक',subtopic='सभी सबटॉपिक',index=0,revealed=0,autoPaused=false;let shelf={level:'grade',grade:'',subject:'',book:'',chapter:'',topic:'',subtopic:''};
+let questions=[],seen={},ready=false,trash=[],editId=null;const openKeys=new Set();let typedLines=0,typedQ=null,typingNow=false,typingTimer=null;let deskMode=false;try{deskMode=localStorage.getItem('shadabDeskView')==='1'}catch(e){}let tab='revise',grade='सभी कक्षाएँ',book='सभी पुस्तकें',subject='सभी विषय',chapter='सभी टॉपिक',subtopic='सभी सबटॉपिक',index=0,revealed=0,autoPaused=false;let shelf={level:'grade',grade:'',subject:'',book:'',chapter:'',topic:'',subtopic:''};
 const $=s=>document.querySelector(s);const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));const save=()=>{try{localStorage.setItem('shadabRevisionQuestions',JSON.stringify(questions))}catch(e){}queueSync()};const gradeOf=q=>q.grade||'बिना कक्षा',subjectOf=q=>q.subject||'सामान्य';const bookOf=q=>q.book||`${q.subject||'सामान्य'} — सामान्य पुस्तक`;const chapterOf=q=>q.chapter||'बिना अध्याय';const topicOf=q=>q.topic||'सामान्य प्रश्न';const subtopicOf=q=>q.subtopic||'बिना सबटॉपिक';const filtered=()=>questions.filter(q=>gradeOf(q)===shelf.grade&&subjectOf(q)===shelf.subject&&bookOf(q)===shelf.book&&chapterOf(q)===shelf.chapter&&topicOf(q)===shelf.topic&&subtopicOf(q)===shelf.subtopic);
 function options(values,current){return values.map(v=>`<option ${v===current?'selected':''} value="${esc(v)}">${esc(v)}</option>`).join('')}
 function render(){document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));if(tab==='revise')renderRevise();if(tab==='manage')renderManage();if(tab==='report')renderReport()}
@@ -34,7 +34,7 @@ if(shelf.level==='grade'){
 }else if(shelf.level==='subtopic'){
  body=`<div class="shelf-intro"><h2>${esc(shelf.topic)}</h2><span class="hint">सबटॉपिक हो तो चुनें, वरना सीधे पढ़ाई शुरू करें</span></div><div class="shelf-section"><p class="shelf-label">सबटॉपिक / छोटे भाग</p><div class="shelf-grid">${subtopics.map(st=>card(st==='बिना सबटॉपिक'?'सीधे प्रश्न शुरू करें':st,countSub(st),st==='बिना सबटॉपिक'?'📖':'📄',`subtopic|${st}`)).join('')}</div></div>`;
 }else if(shelf.level==='study'){
- body=`<button class="secondary study-back" id="backToShelf">← वापस</button>${q?`<div class="panel study-card"><div class="meta"><span>${esc(gradeOf(q))} · ${esc(subjectOf(q))} · ${esc(bookOf(q))}</span><span>प्रश्न ${index+1}/${list.length}</span></div><div class="book-spine">अध्याय: ${esc(chapterOf(q))}</div><div class="book-spine">टॉपिक: ${esc(topicOf(q))}</div>${q.subtopic?`<div class="book-spine">सबटॉपिक: ${esc(q.subtopic)}</div>`:''}<div class="progress"><span style="width:${list.length?(index+1)/list.length*100:0}%"></span></div><div class="notebook"><div class="nb-q">प्रश्न ${index+1}. ${esc(q.q)}</div>${revealed>0?'<div class="nb-ans-head">उत्तर:</div>':''}<div class="nb-lines">${q.a.slice(0,revealed).map((line,i)=>`<div class="nb-line"><span class="nb-dash">–</span><span class="nb-text"${i===animIdx?` data-type="${i}"`:''}>${i===animIdx?'':esc(line)}</span></div>`).join('')}</div>${revealed===q.a.length?`<p class="nb-done" id="doneMsg"${animIdx===revealed-1&&animIdx!==-1?' style="display:none"':''}>✓ उत्तर पूरा हो गया!</p>`:''}</div><div class="actions">${revealed<q.a.length?`<button class="primary" id="reveal">${revealed===0?'पहली पंक्ति दिखाएँ':'अगली पंक्ति दिखाएँ'} →</button>`:`<button class="primary" id="next">अगला प्रश्न →</button>`}<button class="secondary" id="autoToggle">${autoPaused?'▶ ऑटो रिवील चालू करें':'⏸ ऑटो रिवील रोकें'}</button><button class="secondary" id="remember">✓ याद हो गया</button><button class="outline" id="again">↻ फिर से देखें</button><button class="outline" id="editQ">संपादित करें</button></div></div>`:`<div class="panel shelf-empty">इस सबटॉपिक में प्रश्न नहीं मिले।</div>`}`;
+ body=`<div class="study-bar"><button class="secondary study-back" id="backToShelf">← वापस</button><label class="sw"><input type="checkbox" id="deskToggle"${deskMode?' checked':''}><span class="sw-track"></span><span>डेस्कटॉप व्यू</span></label></div>${q?`<div class="deskwrap${deskMode?' deskview':''}"><div class="panel study-card"><div class="meta"><span>${esc(gradeOf(q))} · ${esc(subjectOf(q))} · ${esc(bookOf(q))}</span><span>प्रश्न ${index+1}/${list.length}</span></div><div class="book-spine">अध्याय: ${esc(chapterOf(q))}</div><div class="book-spine">टॉपिक: ${esc(topicOf(q))}</div>${q.subtopic?`<div class="book-spine">सबटॉपिक: ${esc(q.subtopic)}</div>`:''}<div class="progress"><span style="width:${list.length?(index+1)/list.length*100:0}%"></span></div><div class="notebook"><div class="nb-q">प्रश्न ${index+1}. ${esc(q.q)}</div>${revealed>0?'<div class="nb-ans-head">उत्तर:</div>':''}<div class="nb-lines">${q.a.slice(0,revealed).map((line,i)=>`<div class="nb-line"><span class="nb-dash">–</span><span class="nb-text"${i===animIdx?` data-type="${i}"`:''}>${i===animIdx?'':esc(line)}</span></div>`).join('')}</div>${revealed===q.a.length?`<p class="nb-done" id="doneMsg"${animIdx===revealed-1&&animIdx!==-1?' style="display:none"':''}>✓ उत्तर पूरा हो गया!</p>`:''}</div><div class="actions">${revealed<q.a.length?`<button class="primary" id="reveal">${revealed===0?'पहली पंक्ति दिखाएँ':'अगली पंक्ति दिखाएँ'} →</button><button class="secondary" id="skipNext">अगला प्रश्न ⏭</button>`:`<button class="primary" id="next">अगला प्रश्न →</button>`}<button class="outline" id="prevQ">← पिछला प्रश्न</button><button class="secondary" id="autoToggle">${autoPaused?'▶ ऑटो रिवील चालू करें':'⏸ ऑटो रिवील रोकें'}</button><button class="secondary" id="remember">✓ याद हो गया</button><button class="outline" id="again">↻ फिर से देखें</button><button class="outline" id="editQ">संपादित करें</button></div><div class="jumpbar"><span>प्रश्न नंबर पर जाएँ:</span><input type="number" id="jumpNo" min="1" max="${list.length}" value="${index+1}"><button class="secondary" id="jumpGo">जाएँ</button><span>कुल ${list.length}</span></div></div></div>`:`<div class="panel shelf-empty">इस सबटॉपिक में प्रश्न नहीं मिले।</div>`}`;
 }
 $('#content').innerHTML=`<div class="panel bookshelf-panel">${crumbs}${body}</div>`;
 document.querySelectorAll('[data-level]').forEach(b=>b.onclick=()=>{const level=b.dataset.level;shelf.level=level;if(level==='grade'){shelf.grade=shelf.subject=shelf.book=shelf.chapter=shelf.topic=shelf.subtopic=''}if(level==='book'){shelf.subject=shelf.book=shelf.chapter=shelf.topic=shelf.subtopic=''}if(level==='chapter'){shelf.chapter=shelf.topic=shelf.subtopic=''}if(level==='topic'){shelf.topic=shelf.subtopic=''}index=0;revealed=0;renderRevise()});
@@ -44,6 +44,13 @@ $('#backToShelf')?.addEventListener('click',()=>{shelf.level='subtopic';index=0;
 $('#reveal')?.addEventListener('click',()=>{revealed=Math.min(q.a.length,revealed+1);renderRevise()});
 $('#autoToggle')?.addEventListener('click',e=>{autoPaused=!autoPaused;e.currentTarget.textContent=autoPaused?'▶ ऑटो रिवील चालू करें':'⏸ ऑटो रिवील रोकें'});
 $('#next')?.addEventListener('click',()=>{index=(index+1)%list.length;revealed=0;renderRevise()});
+$('#skipNext')?.addEventListener('click',()=>{index=(index+1)%list.length;revealed=0;renderRevise()});
+$('#prevQ')?.addEventListener('click',()=>{index=(index-1+list.length)%list.length;revealed=0;renderRevise()});
+const jump=()=>{const n=Math.max(1,Math.min(list.length,Math.round(Number($('#jumpNo').value))||1));index=n-1;revealed=0;renderRevise()};
+$('#jumpGo')?.addEventListener('click',jump);
+$('#jumpNo')?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();jump()}});
+$('#deskToggle')?.addEventListener('change',e=>{deskMode=e.target.checked;try{localStorage.setItem('shadabDeskView',deskMode?'1':'0')}catch(x){}applyDesk()});
+applyDesk();
 $('#remember')?.addEventListener('click',()=>{seen[q.id]='याद';saveSeen();if(index<list.length-1){index++;revealed=0}renderRevise()});
 $('#again')?.addEventListener('click',()=>{revealed=0;renderRevise()});
 $('#editQ')?.addEventListener('click',()=>startEdit(q.id));
@@ -330,3 +337,17 @@ function typeInto(elm,text,done){
   };
   typingTimer=setTimeout(step,220);
 }
+
+/* ===== डेस्कटॉप व्यू (सिर्फ़ प्रश्न-उत्तर स्क्रीन) ===== */
+function applyDesk(){
+  const w=document.querySelector('.deskwrap');if(!w)return;
+  w.classList.toggle('deskview',deskMode);
+  if(!deskMode){w.style.zoom='';return}
+  const host=document.getElementById('content');
+  const panel=host&&host.querySelector?host.querySelector('.bookshelf-panel'):null;
+  let avail=panel?panel.clientWidth:(host?host.clientWidth:0);
+  if(panel&&typeof getComputedStyle==='function'){const cs=getComputedStyle(panel);avail-=(parseFloat(cs.paddingLeft)||0)+(parseFloat(cs.paddingRight)||0)}
+  const z=Math.min(1,(avail||980)/980);
+  w.style.zoom=z<0.999?String(z):'';
+}
+if(typeof window!=='undefined')window.addEventListener('resize',applyDesk);
