@@ -1,8 +1,9 @@
-let questions=[],seen={},ready=false,trash=[],editId=null;const openKeys=new Set();let tab='revise',grade='सभी कक्षाएँ',book='सभी पुस्तकें',subject='सभी विषय',chapter='सभी टॉपिक',subtopic='सभी सबटॉपिक',index=0,revealed=0,autoPaused=false;let shelf={level:'grade',grade:'',subject:'',book:'',chapter:'',topic:'',subtopic:''};
+let questions=[],seen={},ready=false,trash=[],editId=null;const openKeys=new Set();let typedLines=0,typedQ=null,typingNow=false,typingTimer=null;let tab='revise',grade='सभी कक्षाएँ',book='सभी पुस्तकें',subject='सभी विषय',chapter='सभी टॉपिक',subtopic='सभी सबटॉपिक',index=0,revealed=0,autoPaused=false;let shelf={level:'grade',grade:'',subject:'',book:'',chapter:'',topic:'',subtopic:''};
 const $=s=>document.querySelector(s);const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));const save=()=>{try{localStorage.setItem('shadabRevisionQuestions',JSON.stringify(questions))}catch(e){}queueSync()};const gradeOf=q=>q.grade||'बिना कक्षा',subjectOf=q=>q.subject||'सामान्य';const bookOf=q=>q.book||`${q.subject||'सामान्य'} — सामान्य पुस्तक`;const chapterOf=q=>q.chapter||'बिना अध्याय';const topicOf=q=>q.topic||'सामान्य प्रश्न';const subtopicOf=q=>q.subtopic||'बिना सबटॉपिक';const filtered=()=>questions.filter(q=>gradeOf(q)===shelf.grade&&subjectOf(q)===shelf.subject&&bookOf(q)===shelf.book&&chapterOf(q)===shelf.chapter&&topicOf(q)===shelf.topic&&subtopicOf(q)===shelf.subtopic);
 function options(values,current){return values.map(v=>`<option ${v===current?'selected':''} value="${esc(v)}">${esc(v)}</option>`).join('')}
 function render(){document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));if(tab==='revise')renderRevise();if(tab==='manage')renderManage();if(tab==='report')renderReport()}
 function renderRevise(autoScroll=false){
+clearTimeout(typingTimer);typingNow=false;
 const allGrades=[...new Set(questions.map(gradeOf))].sort((a,b)=>a.localeCompare(b,'hi'));
 const allBooks=questions.filter(q=>gradeOf(q)===shelf.grade).reduce((acc,q)=>{const key=[subjectOf(q),bookOf(q)].join('|||');if(!acc.some(x=>x.key===key))acc.push({key,subject:subjectOf(q),book:bookOf(q)});return acc},[]);
 const inBook=questions.filter(q=>gradeOf(q)===shelf.grade&&subjectOf(q)===shelf.subject&&bookOf(q)===shelf.book);
@@ -12,6 +13,8 @@ const topics=[...new Set(inChapter.map(topicOf))];
 const inTopic=inChapter.filter(q=>topicOf(q)===shelf.topic);
 const subtopics=[...new Set(inTopic.map(subtopicOf))];
 const list=filtered();if(index>=list.length)index=Math.max(0,list.length-1);const q=shelf.level==='study'?list[index]:null;
+if(revealed===0)typedLines=0;if(q&&typedQ!==q.id){typedQ=q.id;typedLines=0}
+const animIdx=(q&&revealed>0&&revealed-1>=typedLines)?revealed-1:-1;
 const countGrade=g=>questions.filter(q=>gradeOf(q)===g&&!q.ph).length;
 const countBook=(su,bk)=>questions.filter(q=>gradeOf(q)===shelf.grade&&subjectOf(q)===su&&bookOf(q)===bk&&!q.ph).length;
 const countChapter=c=>inBook.filter(q=>chapterOf(q)===c&&!q.ph).length;
@@ -31,7 +34,7 @@ if(shelf.level==='grade'){
 }else if(shelf.level==='subtopic'){
  body=`<div class="shelf-intro"><h2>${esc(shelf.topic)}</h2><span class="hint">सबटॉपिक हो तो चुनें, वरना सीधे पढ़ाई शुरू करें</span></div><div class="shelf-section"><p class="shelf-label">सबटॉपिक / छोटे भाग</p><div class="shelf-grid">${subtopics.map(st=>card(st==='बिना सबटॉपिक'?'सीधे प्रश्न शुरू करें':st,countSub(st),st==='बिना सबटॉपिक'?'📖':'📄',`subtopic|${st}`)).join('')}</div></div>`;
 }else if(shelf.level==='study'){
- body=`<button class="secondary study-back" id="backToShelf">← वापस</button>${q?`<div class="panel study-card"><div class="meta"><span>${esc(gradeOf(q))} · ${esc(subjectOf(q))} · ${esc(bookOf(q))}</span><span>प्रश्न ${index+1}/${list.length}</span></div><div class="book-spine">अध्याय: ${esc(chapterOf(q))}</div><div class="book-spine">टॉपिक: ${esc(topicOf(q))}</div>${q.subtopic?`<div class="book-spine">सबटॉपिक: ${esc(q.subtopic)}</div>`:''}<div class="progress"><span style="width:${list.length?(index+1)/list.length*100:0}%"></span></div><h2>प्रश्न ${index+1}</h2><div class="question">${esc(q.q)}</div><div class="answer-lines">${q.a.slice(0,revealed).map((line,i)=>`<div class="answer-line"><span class="line-label">पंक्ति ${i+1}</span>${esc(line)}</div>`).join('')}</div>${revealed===q.a.length?'<p class="success">✓ उत्तर पूरा हो गया!</p>':''}<div class="actions">${revealed<q.a.length?`<button class="primary" id="reveal">${revealed===0?'पहली पंक्ति दिखाएँ':'अगली पंक्ति दिखाएँ'} →</button>`:`<button class="primary" id="next">अगला प्रश्न →</button>`}<button class="secondary" id="autoToggle">${autoPaused?'▶ ऑटो रिवील चालू करें':'⏸ ऑटो रिवील रोकें'}</button><button class="secondary" id="remember">✓ याद हो गया</button><button class="outline" id="again">↻ फिर से देखें</button><button class="outline" id="editQ">संपादित करें</button></div></div>`:`<div class="panel shelf-empty">इस सबटॉपिक में प्रश्न नहीं मिले।</div>`}`;
+ body=`<button class="secondary study-back" id="backToShelf">← वापस</button>${q?`<div class="panel study-card"><div class="meta"><span>${esc(gradeOf(q))} · ${esc(subjectOf(q))} · ${esc(bookOf(q))}</span><span>प्रश्न ${index+1}/${list.length}</span></div><div class="book-spine">अध्याय: ${esc(chapterOf(q))}</div><div class="book-spine">टॉपिक: ${esc(topicOf(q))}</div>${q.subtopic?`<div class="book-spine">सबटॉपिक: ${esc(q.subtopic)}</div>`:''}<div class="progress"><span style="width:${list.length?(index+1)/list.length*100:0}%"></span></div><div class="notebook"><div class="nb-q">प्रश्न ${index+1}. ${esc(q.q)}</div>${revealed>0?'<div class="nb-ans-head">उत्तर:</div>':''}<div class="nb-lines">${q.a.slice(0,revealed).map((line,i)=>`<div class="nb-line"><span class="nb-dash">–</span><span class="nb-text"${i===animIdx?` data-type="${i}"`:''}>${i===animIdx?'':esc(line)}</span></div>`).join('')}</div>${revealed===q.a.length?`<p class="nb-done" id="doneMsg"${animIdx===revealed-1&&animIdx!==-1?' style="display:none"':''}>✓ उत्तर पूरा हो गया!</p>`:''}</div><div class="actions">${revealed<q.a.length?`<button class="primary" id="reveal">${revealed===0?'पहली पंक्ति दिखाएँ':'अगली पंक्ति दिखाएँ'} →</button>`:`<button class="primary" id="next">अगला प्रश्न →</button>`}<button class="secondary" id="autoToggle">${autoPaused?'▶ ऑटो रिवील चालू करें':'⏸ ऑटो रिवील रोकें'}</button><button class="secondary" id="remember">✓ याद हो गया</button><button class="outline" id="again">↻ फिर से देखें</button><button class="outline" id="editQ">संपादित करें</button></div></div>`:`<div class="panel shelf-empty">इस सबटॉपिक में प्रश्न नहीं मिले।</div>`}`;
 }
 $('#content').innerHTML=`<div class="panel bookshelf-panel">${crumbs}${body}</div>`;
 document.querySelectorAll('[data-level]').forEach(b=>b.onclick=()=>{const level=b.dataset.level;shelf.level=level;if(level==='grade'){shelf.grade=shelf.subject=shelf.book=shelf.chapter=shelf.topic=shelf.subtopic=''}if(level==='book'){shelf.subject=shelf.book=shelf.chapter=shelf.topic=shelf.subtopic=''}if(level==='chapter'){shelf.chapter=shelf.topic=shelf.subtopic=''}if(level==='topic'){shelf.topic=shelf.subtopic=''}index=0;revealed=0;renderRevise()});
@@ -39,11 +42,12 @@ document.querySelectorAll('[data-shelf-action]').forEach(b=>b.onclick=()=>{const
 if(shelf.level!=='study'||!q)return;
 $('#backToShelf')?.addEventListener('click',()=>{shelf.level='subtopic';index=0;revealed=0;renderRevise()});
 $('#reveal')?.addEventListener('click',()=>{revealed=Math.min(q.a.length,revealed+1);renderRevise()});
-$('#autoToggle')?.addEventListener('click',()=>{autoPaused=!autoPaused;renderRevise()});
+$('#autoToggle')?.addEventListener('click',e=>{autoPaused=!autoPaused;e.currentTarget.textContent=autoPaused?'▶ ऑटो रिवील चालू करें':'⏸ ऑटो रिवील रोकें'});
 $('#next')?.addEventListener('click',()=>{index=(index+1)%list.length;revealed=0;renderRevise()});
 $('#remember')?.addEventListener('click',()=>{seen[q.id]='याद';saveSeen();if(index<list.length-1){index++;revealed=0}renderRevise()});
 $('#again')?.addEventListener('click',()=>{revealed=0;renderRevise()});
 $('#editQ')?.addEventListener('click',()=>startEdit(q.id));
+{const tEl=document.querySelector('[data-type]');if(tEl){const i=Number(tEl.dataset.type);typedLines=revealed;typeInto(tEl,q.a[i],()=>{const dm=document.getElementById('doneMsg');if(dm)dm.style.display=''})}}
 if(autoScroll && revealed>0){requestAnimationFrame(()=>{const actions=document.querySelector('.actions');if(actions)actions.scrollIntoView({behavior:'smooth',block:'end'});});}
 }
 function parseTxtQuestions(text){
@@ -136,7 +140,7 @@ document.querySelectorAll('[data-delete]').forEach(b=>b.addEventListener('click'
 function renderReport(){let known=Object.keys(seen).filter(id=>seen[id]==='याद').length;$('#content').innerHTML=`<div class="panel"><h2>आपकी Revision रिपोर्ट</h2><div class="stats"><div class="stat"><b>${questions.filter(q=>!q.ph).length}</b><span>कुल प्रश्न</span></div><div class="stat"><b>${known}</b><span>याद हो गए</span></div><div class="stat"><b>${Math.max(0,questions.filter(q=>!q.ph).length-known)}</b><span>बाकी प्रश्न</span></div></div><div class="actions"><button class="secondary" id="clearSeen">रिपोर्ट रीसेट करें</button><button class="outline" id="export">प्रश्नों का बैकअप डाउनलोड करें</button><label class="tab" style="display:inline-flex;align-items:center;cursor:pointer">बैकअप अपलोड करें<input id="import" type="file" accept="application/json" style="display:none"></label></div><div class="notice">प्रश्न कक्षा → पुस्तक → अध्याय → टॉपिक → सबटॉपिक के अनुसार व्यवस्थित हैं। डेटा MongoDB सर्वर पर सेव होता है, इसलिए हर डिवाइस पर एक जैसा दिखेगा।</div></div>`;$('#clearSeen').onclick=()=>{seen={};saveSeen();renderReport()};$('#export').onclick=()=>{let blob=new Blob([JSON.stringify(questions,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='shadab-revision-backup.json';a.click();URL.revokeObjectURL(url)};$('#import').onchange=async e=>{try{let data=JSON.parse(await e.target.files[0].text());if(Array.isArray(data)&&data.every(q=>q.q&&Array.isArray(q.a))){questions=data;save();renderReport()}else alert('यह सही प्रश्न बैकअप फ़ाइल नहीं है।')}catch{alert('फ़ाइल पढ़ी नहीं जा सकी।')}}}
 document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{tab=b.dataset.tab;editId=null;render()}));boot();
 // Auto-reveal one answer line every 10 seconds while Revision is open and not paused.
-setInterval(()=>{if(tab!=='revise'||autoPaused||shelf.level!=='study')return;const list=filtered();const q=list[index];if(q&&revealed<q.a.length){revealed++;renderRevise(true);}},10000);
+setInterval(()=>{if(tab!=='revise'||autoPaused||shelf.level!=='study')return;const list=filtered();const q=list[index];if(q&&revealed<q.a.length&&!typingNow){revealed++;renderRevise(true);}},10000);
 
 /* ===== सर्वर (MongoDB) सिंक ===== */
 const setStatus=t=>{const e=document.getElementById('syncStatus');if(e)e.textContent=t};
@@ -307,4 +311,22 @@ function bindMove(){
   const go=id=>{const inp=document.querySelector(`[data-pos="${id}"]`);if(inp)moveQ(id,inp.value)};
   document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));
   document.querySelectorAll('[data-pos]').forEach(inp=>inp.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();go(inp.dataset.pos)}});
+}
+
+/* ===== हाथ से टाइप करने जैसा उत्तर ===== */
+function typeInto(elm,text,done){
+  const seg=(typeof Intl!=='undefined'&&Intl.Segmenter)?[...new Intl.Segmenter('hi',{granularity:'grapheme'}).segment(text)].map(x=>x.segment):[...text];
+  let i=0;typingNow=true;
+  const caret=document.createElement('span');caret.className='nb-caret';
+  if(elm.after)elm.after(caret);
+  const finish=()=>{typingNow=false;if(caret.remove)caret.remove();if(done)done()};
+  const step=()=>{
+    if(!elm.isConnected){typingNow=false;return}
+    i++;elm.textContent=seg.slice(0,i).join('');
+    if(i>=seg.length){finish();return}
+    const c=seg[i-1];
+    const d=/[।,.?!;:]/.test(c)?240+Math.random()*160:/\s/.test(c)?60+Math.random()*60:26+Math.random()*44;
+    typingTimer=setTimeout(step,d);
+  };
+  typingTimer=setTimeout(step,220);
 }

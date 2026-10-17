@@ -80,3 +80,16 @@ details>summary{list-style:revert}
 .book-spine{display:inline-block;background:var(--soft);color:var(--blue);border:1px solid var(--line);border-radius:20px;padding:4px 12px;margin:3px 6px 3px 0;font-size:12.5px;font-weight:600}
 .shelf-empty{padding:30px 16px;text-align:center;color:var(--muted);border:1px dashed #cbd5e1;border-radius:14px;background:#f8fafc}
 @media(max-width:600px){.formgrid{grid-template-columns:1fr}.wide{grid-column:auto}.panel{padding:16px}.stats{grid-template-columns:repeat(3,1fr)}.stat{padding:11px}.stat b{font-size:20px}.shelf-grid,.shelf-row{grid-template-columns:repeat(2,minmax(0,1fr));gap:24px 12px}.shelf-card{min-height:108px;padding:30px 11px 11px}.shelf-intro h2{font-size:18px}.tabs{display:flex;width:100%}.tab{flex:1;padding:10px 6px;font-size:13px}}
+
+/* ---- कॉपी का पन्ना ---- */
+.notebook{position:relative;margin:8px 0 6px;padding:40px 22px 44px 78px;min-height:340px;border-radius:6px 14px 14px 6px;font-family:"Kalam","Noto Sans Devanagari",cursive;color:#1d3fa8;background:radial-gradient(circle at 26px 56px,#dde3ed 0 7px,#c3ccdb 7px 8px,transparent 8px) 0 0/52px 170px repeat-y,repeating-linear-gradient(to bottom,#fffef8 0,#fffef8 39px,#c3d3ea 39px,#c3d3ea 40px);box-shadow:0 1px 3px rgba(15,23,42,.14),0 16px 32px rgba(15,23,42,.08)}
+.notebook::before{content:"";position:absolute;left:60px;top:0;bottom:0;width:2px;background:#e9a3a3;box-shadow:3px 0 0 #f4cccc}
+.nb-q{font-size:24px;line-height:40px;font-weight:700;color:#14213d;white-space:pre-line}
+.nb-ans-head{font-size:21px;line-height:40px;font-weight:700;color:#c0392b;text-decoration:underline;text-underline-offset:6px}
+.nb-line{display:flex;gap:8px;font-size:21px;line-height:40px}
+.nb-dash{flex:none;color:#7b8fd1}
+.nb-text{flex:0 1 auto;overflow-wrap:anywhere}
+.nb-caret{flex:none;align-self:center;width:2px;height:24px;margin-left:-4px;background:#1d3fa8;animation:nbblink .7s steps(1) infinite}
+@keyframes nbblink{50%{opacity:0}}
+.nb-done{margin:0;font-size:18px;line-height:40px;font-weight:700;color:#15803d;font-family:"Noto Sans Devanagari",system-ui,sans-serif}
+@media(max-width:600px){.notebook{padding:40px 12px 44px 52px;min-height:300px}.notebook::before{left:38px}.nb-q{font-size:20px}.nb-line,.nb-ans-head{font-size:18px}.notebook{background-size:40px 170px,auto}}
