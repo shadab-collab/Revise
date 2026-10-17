@@ -33,17 +33,19 @@ app.get('/healthz', (req, res) => res.send('ok'));
 
 app.get('/api/data', async (req, res) => {
   try {
-    const [questions, seenDoc, seededDoc, trashDoc] = await Promise.all([
+    const [questions, seenDoc, seededDoc, trashDoc, resumeDoc] = await Promise.all([
       Question.find({}, { _id: 0 }).sort({ pos: 1, id: 1 }).lean(),
       Meta.findById('seen').lean(),
       Meta.findById('seeded').lean(),
       Meta.findById('trash').lean(),
+      Meta.findById('resume').lean(),
     ]);
     res.json({
       questions,
       seen: (seenDoc && seenDoc.v) || {},
       seeded: !!seededDoc,
       trash: (trashDoc && trashDoc.v) || [],
+      resume: (resumeDoc && resumeDoc.v) || null,
     });
   } catch (e) {
     console.error(e);
@@ -98,6 +100,18 @@ app.put('/api/trash', needKey, async (req, res) => {
     const trash = req.body && req.body.trash;
     if (!Array.isArray(trash)) return res.status(400).json({ error: 'invalid trash' });
     await Meta.updateOne({ _id: 'trash' }, { $set: { v: trash.slice(0, 50) } }, { upsert: true });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'server error' });
+  }
+});
+
+app.put('/api/resume', needKey, async (req, res) => {
+  try {
+    const resume = req.body && req.body.resume;
+    if (!resume || typeof resume !== 'object' || Array.isArray(resume)) return res.status(400).json({ error: 'invalid resume' });
+    await Meta.updateOne({ _id: 'resume' }, { $set: { v: resume } }, { upsert: true });
     res.json({ ok: true });
   } catch (e) {
     console.error(e);
