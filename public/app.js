@@ -1,4 +1,4 @@
-let questions=[],seen={},ready=false,trash=[],editId=null;const openKeys=new Set();let typedLines=0,typedQ=null,typingNow=false,typingTimer=null;let deskMode=false;try{deskMode=localStorage.getItem('shadabDeskView')==='1'}catch(e){}
+let questions=[],seen={},ready=false,trash=[],editId=null;const openKeys=new Set();let bulkDraft='',bulkEditCtx=null;let typedLines=0,typedQ=null,typingNow=false,typingTimer=null;let deskMode=false;try{deskMode=localStorage.getItem('shadabDeskView')==='1'}catch(e){}
 const loadNum=(k,d)=>{try{const v=Number(localStorage.getItem(k));return v>=.6&&v<=2?v:d}catch(e){return d}};
 let nbScale=loadNum('shadabNbScale',1),nbScaleDesk=loadNum('shadabNbScaleDesk',1),lastPos=null,resumeSaved='',resumeT=null;let tab='revise',grade='सभी कक्षाएँ',book='सभी पुस्तकें',subject='सभी विषय',chapter='सभी टॉपिक',subtopic='सभी सबटॉपिक',index=0,revealed=0,autoPaused=false;let shelf={level:'grade',grade:'',subject:'',book:'',chapter:'',topic:'',subtopic:''};
 const $=s=>document.querySelector(s);const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));const save=()=>{try{localStorage.setItem('shadabRevisionQuestions',JSON.stringify(questions))}catch(e){}queueSync()};const gradeOf=q=>q.grade||'बिना कक्षा',subjectOf=q=>q.subject||'सामान्य';const bookOf=q=>q.book||`${q.subject||'सामान्य'} — सामान्य पुस्तक`;const chapterOf=q=>q.chapter||'बिना अध्याय';const topicOf=q=>q.topic||'सामान्य प्रश्न';const subtopicOf=q=>q.subtopic||'बिना सबटॉपिक';const filtered=()=>questions.filter(q=>gradeOf(q)===shelf.grade&&subjectOf(q)===shelf.subject&&bookOf(q)===shelf.book&&chapterOf(q)===shelf.chapter&&topicOf(q)===shelf.topic&&subtopicOf(q)===shelf.subtopic);
@@ -63,8 +63,9 @@ $('#editQ')?.addEventListener('click',()=>startEdit(q.id));
 {const tEl=document.querySelector('[data-type]');if(tEl){const i=Number(tEl.dataset.type);typedLines=revealed;typeInto(tEl,q.a[i],()=>{const dm=document.getElementById('doneMsg');if(dm)dm.style.display=''})}}
 if(autoScroll && revealed>0){requestAnimationFrame(()=>{const actions=document.querySelector('.actions');if(actions)actions.scrollIntoView({behavior:'smooth',block:'end'});});}
 }
-function parseTxtQuestions(text){
-  const rows=String(text||'').replace(/\r/g,'').replace(/[,，।]\s*/g,'\n').split('\n');
+function parseTxtQuestions(text,raw){
+  const base=String(text||'').replace(/\r/g,'');
+  const rows=(raw?base:base.replace(/[,，।]\s*/g,'\n')).split('\n');
   const parsed=[];let current=null;let mode='';
   const flush=()=>{if(current){current.q=current.q.trim();current.a=current.a.map(x=>x.trim()).filter(Boolean);if(current.q&&current.a.length)parsed.push(current);current=null;mode='';}};
   for(const raw of rows){
@@ -103,11 +104,11 @@ const folderHtml=Object.entries(groupBy(questions,q=>q.grade||'बिना क�
 const bookOptions=[...new Set(questions.map(bookOf))];let editQ=editId?questions.find(x=>x.id===editId):null;if(!editQ)editId=null;
 $('#content').innerHTML=`
 <div class="panel"><h2>कहाँ जोड़ना है?</h2><p class="hint">पहले यहाँ जगह चुनें, फिर नीचे प्रश्न लिखकर सेव करें। पुराने फ़ोल्डर लिस्ट से चुनें, नया बनाना हो तो “➕ नया लिखें” चुनें। चुनी हुई जगह बनी रहेगी, इसलिए अगला import भी वहीं होगा।</p><div id="picker"></div></div>
-<div class="panel"><h2>Bulk Import (पेस्ट करके कई प्रश्न)</h2>
-<p class="hint">ऊपर “कहाँ जोड़ना है?” में जगह चुनें, फिर प्रश्न नीचे पेस्ट करें। नए प्रश्न उस सबटॉपिक/टॉपिक के <b>अंत में</b> जुड़ेंगे। बाद में नीचे की सूची में ▲ ▼ या स्थान संख्या से ऊपर-नीचे कर सकते हैं।</p>
-<div class="field"><label>प्रश्न यहाँ पेस्ट करें</label><textarea id="bulkText" rows="9" placeholder="प्रश्न: प्रकाश संश्लेषण क्या है?&#10;उत्तर:&#10;हरे पौधे अपना भोजन बनाते हैं।&#10;यह प्रक्रिया सूर्य के प्रकाश की सहायता से होती है।&#10;&#10;प्रश्न: कोशिका क्या है?&#10;उत्तर:&#10;कोशिका जीवों की संरचनात्मक और क्रियात्मक इकाई है।"></textarea></div>
-<div class="actions"><button class="secondary" id="checkBulk">प्रश्नों की जाँच करें</button><button class="primary" id="importBulk">चुनी जगह में Bulk Import करें</button></div>
-<div id="bulkStatus" class="notice">पहले जगह चुनें, फिर प्रश्न पेस्ट करके “जाँच करें” दबाएँ।</div>
+<div class="panel"><h2>Bulk Import / Bulk Edit (कई प्रश्न एक साथ)</h2>
+<p class="hint">ऊपर “कहाँ जोड़ना है?” में जगह चुनें, फिर प्रश्न नीचे पेस्ट करें। नए प्रश्न उस सबटॉपिक/टॉपिक के <b>अंत में</b> जुड़ेंगे। बाद में नीचे की सूची में ▲ ▼ या स्थान संख्या से ऊपर-नीचे कर सकते हैं।<br><b>Bulk Edit:</b> जगह चुनकर “एडिट के लिए लाएँ” दबाएँ, उस जगह के सारे प्रश्न नीचे खुल जाएँगे। उन्हें बदलें, नए जोड़ें या किसी को मिटाएँ, फिर “एडिट सेव करें” दबाएँ। मिटाए गए प्रश्न कचरा पेटी में जाते हैं।</p>
+<div class="field"><label>प्रश्न यहाँ पेस्ट करें</label><textarea id="bulkText" rows="${bulkEditCtx?18:9}" placeholder="प्रश्न: प्रकाश संश्लेषण क्या है?&#10;उत्तर:&#10;हरे पौधे अपना भोजन बनाते हैं।&#10;यह प्रक्रिया सूर्य के प्रकाश की सहायता से होती है।&#10;&#10;प्रश्न: कोशिका क्या है?&#10;उत्तर:&#10;कोशिका जीवों की संरचनात्मक और क्रियात्मक इकाई है।">${esc(bulkDraft)}</textarea></div>
+<div class="actions"><button class="secondary" id="checkBulk">प्रश्नों की जाँच करें</button><button class="primary" id="importBulk"${bulkEditCtx?' disabled':''}>चुनी जगह में Bulk Import करें</button><button class="secondary" id="loadBulkEdit">चुनी जगह के प्रश्न एडिट के लिए लाएँ</button>${bulkEditCtx?'<button class="primary" id="saveBulkEdit">एडिट सेव करें</button><button class="outline" id="cancelBulkEdit">एडिट रद्द करें</button>':''}</div>
+<div id="bulkStatus" class="notice">${bulkEditCtx?`एडिट मोड: “${esc(bulkEditCtx.d.bk)} › ${esc(bulkEditCtx.d.ch)} › ${esc(bulkEditCtx.d.top)}${bulkEditCtx.d.sub?' › '+esc(bulkEditCtx.d.sub):''}” के प्रश्न खुले हैं। बदलकर “एडिट सेव करें” दबाएँ।`:'पहले जगह चुनें, फिर प्रश्न पेस्ट करके “जाँच करें” दबाएँ।'}</div>
 <details style="margin-top:12px"><summary style="cursor:pointer;font-weight:700">पेस्ट करने का नमूना देखें</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere;background:var(--soft);padding:12px;border-radius:10px">प्रश्न: प्रकाश संश्लेषण क्या है?
 उत्तर:
 हरे पौधे अपना भोजन बनाते हैं।
@@ -122,9 +123,13 @@ $('#content').innerHTML=`
 <div class="field wide"><label>उत्तर — हर पंक्ति अलग लाइन में लिखें</label><textarea name="a" required rows="6" placeholder="पहली पंक्ति&#10;दूसरी पंक्ति&#10;तीसरी पंक्ति">${editQ?esc(editQ.a.join('\n')):''}</textarea><span class="hint">Revision में एक क्लिक पर एक नई पंक्ति खुलेगी।</span></div>
 <div class="wide"><button class="primary" type="submit">${editQ?'बदलाव सेव करें':'＋ प्रश्न सेव करें'}</button>${editQ?' <button type="button" class="outline" id="cancelEdit">रद्द करें</button>':''}</div><div class="wide success" id="addStatus"></div></form><div class="notice">कक्षा, विषय, पुस्तक, अध्याय, टॉपिक और सबटॉपिक अपनी जरूरत के अनुसार लिखें। पढ़ाई का क्रम: कक्षा → पुस्तक → अध्याय → टॉपिक → सबटॉपिक।</div></div>
 ${trashHtml()}<div class="panel"><h2>कक्षा → पुस्तक → अध्याय → टॉपिक → सबटॉपिक (${questions.length} प्रश्न)</h2>${folderHtml||'<p class="empty">अभी कोई प्रश्न नहीं है।</p>'}</div>`;
-renderPicker();bindTrash();bindEdit();bindMove();document.querySelectorAll('details[data-k]').forEach(d=>d.addEventListener('toggle',()=>{d.open?openKeys.add(d.dataset.k):openKeys.delete(d.dataset.k)}));$('#cancelEdit')?.addEventListener('click',()=>{editId=null;renderManage()});const bulkText=$('#bulkText'),bulkStatus=$('#bulkStatus');const getBulk=()=>parseTxtQuestions(bulkText.value);
+renderPicker();bindTrash();bindEdit();bindMove();document.querySelectorAll('details[data-k]').forEach(d=>d.addEventListener('toggle',()=>{d.open?openKeys.add(d.dataset.k):openKeys.delete(d.dataset.k)}));$('#cancelEdit')?.addEventListener('click',()=>{editId=null;renderManage()});const bulkText=$('#bulkText'),bulkStatus=$('#bulkStatus');const getBulk=()=>parseTxtQuestions(bulkText.value,!!bulkEditCtx);
+bulkText.addEventListener('input',e=>{bulkDraft=e.target.value});
 $('#checkBulk').onclick=()=>{const parsed=getBulk();bulkStatus.textContent=bulkText.value.trim()?`जाँच पूरी: ${parsed.length} प्रश्न और उनके उत्तर मिले। ${parsed.length?'अब जगह देखकर Import करें।':'फ़ॉर्मेट नमूने के अनुसार जाँचें।'}`:'पहले प्रश्न पेस्ट करें।';};
-$('#importBulk').onclick=()=>{const parsed=getBulk();if(!bulkText.value.trim()){bulkStatus.textContent='पहले प्रश्न पेस्ट करें।';return}if(!parsed.length){bulkStatus.textContent='कोई पूरा प्रश्न-उत्तर नहीं मिला। नमूने के अनुसार “प्रश्न:” और “उत्तर:” लिखें।';return}const d=getDst();if(d.err){bulkStatus.textContent=d.err;return}dropPh(d.g,d.su,d.bk,d.ch,d.top,d.sub);const now=Date.now();const add=parsed.map((q,i)=>({id:now+i,grade:d.g,subject:d.su,book:d.bk,chapter:d.ch,topic:d.top,subtopic:d.sub,q:q.q,a:q.a}));questions.push(...add);save();shelf={level:'grade',grade:'',subject:'',book:'',chapter:'',topic:'',subtopic:''};index=0;revealed=0;const msg=`सफलता! ${add.length} प्रश्न “${d.bk} → ${d.ch} → ${d.top}${d.sub?' → '+d.sub:''}” के अंत में जुड़ गए।`;renderManage();$('#bulkStatus').textContent=msg;};
+$('#loadBulkEdit').onclick=()=>{const d=getDst();if(d.err){bulkStatus.textContent=d.err;return}const items=questions.filter(x=>pathMatch(x,d)&&!x.ph);if(!items.length){bulkStatus.textContent='इस जगह अभी कोई प्रश्न नहीं है, इसलिए एडिट के लिए कुछ नहीं मिला।';return}bulkEditCtx={d};bulkDraft=items.map(x=>'प्रश्न: '+x.q+'\nउत्तर:\n'+x.a.join('\n')).join('\n\n')+'\n';renderManage();const t=document.getElementById('bulkText');if(t&&t.scrollIntoView)t.scrollIntoView({behavior:'smooth',block:'center'})};
+$('#saveBulkEdit')?.addEventListener('click',()=>{const parsed=parseTxtQuestions(bulkText.value,true);if(!parsed.length){bulkStatus.textContent='कोई पूरा प्रश्न-उत्तर नहीं मिला। (सब मिटाना हो तो प्रश्न एक-एक करके हटाएँ।)';return}const r=applyBulkEdit(bulkEditCtx.d,parsed);bulkEditCtx=null;bulkDraft='';renderManage();$('#bulkStatus').textContent=`✓ एडिट सेव हो गया: कुल ${r.total} प्रश्न — ${r.same} वही, ${r.chg} बदले, ${r.add} नए, ${r.del} कचरा पेटी में गए।`});
+$('#cancelBulkEdit')?.addEventListener('click',()=>{bulkEditCtx=null;bulkDraft='';renderManage()});
+$('#importBulk').onclick=()=>{const parsed=getBulk();if(!bulkText.value.trim()){bulkStatus.textContent='पहले प्रश्न पेस्ट करें।';return}if(!parsed.length){bulkStatus.textContent='कोई पूरा प्रश्न-उत्तर नहीं मिला। नमूने के अनुसार “प्रश्न:” और “उत्तर:” लिखें।';return}const d=getDst();if(d.err){bulkStatus.textContent=d.err;return}dropPh(d.g,d.su,d.bk,d.ch,d.top,d.sub);const now=Date.now();const add=parsed.map((q,i)=>({id:now+i,grade:d.g,subject:d.su,book:d.bk,chapter:d.ch,topic:d.top,subtopic:d.sub,q:q.q,a:q.a}));questions.push(...add);save();shelf={level:'grade',grade:'',subject:'',book:'',chapter:'',topic:'',subtopic:''};index=0;revealed=0;bulkDraft='';const msg=`सफलता! ${add.length} प्रश्न “${d.bk} → ${d.ch} → ${d.top}${d.sub?' → '+d.sub:''}” के अंत में जुड़ गए।`;renderManage();$('#bulkStatus').textContent=msg;};
 $('#addForm').addEventListener('submit',e=>{e.preventDefault();const f=new FormData(e.target),raw=String(f.get('a')),qt=String(f.get('q')).trim();const a=(editId?raw:raw.replace(/[,，।]\s*/g,'\n')).split(/\n+/).map(x=>x.trim()).filter(Boolean);const d=getDst();if(d.err){alert(d.err);return}if(!a.length||!qt)return;let msg;if(editId){const i=questions.findIndex(x=>x.id===editId);if(i>=0){const nq={...questions[i],grade:d.g,subject:d.su,book:d.bk,chapter:d.ch,topic:d.top,subtopic:d.sub,q:qt,a};delete nq.ph;questions[i]=nq;dropPh(d.g,d.su,d.bk,d.ch,d.top,d.sub)}editId=null;msg='✓ बदलाव सेव हो गया।'}else{dropPh(d.g,d.su,d.bk,d.ch,d.top,d.sub);questions.push({id:Date.now(),grade:d.g,subject:d.su,book:d.bk,chapter:d.ch,topic:d.top,subtopic:d.sub,q:qt,a});msg=`✓ प्रश्न “${d.bk} → ${d.ch} → ${d.top}${d.sub?' → '+d.sub:''}” में जुड़ गया।`}save();shelf={level:'grade',grade:'',subject:'',book:'',chapter:'',topic:'',subtopic:''};index=0;revealed=0;renderManage();$('#addStatus').textContent=msg;});
 document.querySelectorAll('[data-delete-level]').forEach(b=>b.addEventListener('click',e=>{
 e.preventDefault();e.stopPropagation();
@@ -393,4 +398,26 @@ function goResume(){
   shelf={level:'study',grade:p.grade,subject:p.subject,book:p.book,chapter:p.chapter,topic:p.topic,subtopic:p.subtopic};
   const list=filtered();let i=list.findIndex(q=>q.id===p.qid);if(i<0)i=Math.min(p.index||0,list.length-1);
   index=Math.max(0,i);revealed=0;renderRevise();
+}
+
+/* ===== Bulk Edit: चुनी जगह के प्रश्न एक साथ बदलना ===== */
+function pathMatch(x,d){return gradeOf(x)===d.g&&subjectOf(x)===d.su&&bookOf(x)===d.bk&&chapterOf(x)===d.ch&&topicOf(x)===d.top&&subtopicOf(x)===(d.sub||'बिना सबटॉपिक')}
+function applyBulkEdit(d,parsed){
+  const idxs=[];questions.forEach((x,i)=>{if(pathMatch(x,d)&&!x.ph)idxs.push(i)});
+  const old=idxs.map(i=>questions[i]);
+  const used=new Set(),final=new Array(parsed.length);
+  let same=0,chg=0,add=0;
+  // 1) वही प्रश्न-पाठ हो तो पुराना प्रश्न (और उसकी पहचान) बना रहे
+  parsed.forEach((p,k)=>{const j=old.findIndex((o,n)=>!used.has(n)&&o.q.trim()===p.q.trim());if(j>=0){used.add(j);final[k]={...old[j],q:p.q,a:p.a};same++}});
+  // 2) बदला हुआ प्रश्न उसी क्रम-संख्या पर हो तो उसी प्रश्न का एडिट माना जाए, वरना नया
+  parsed.forEach((p,k)=>{if(final[k])return;if(old[k]&&!used.has(k)){used.add(k);final[k]={...old[k],q:p.q,a:p.a};chg++}else{final[k]={id:Date.now()*1000+k,grade:d.g,subject:d.su,book:d.bk,chapter:d.ch,topic:d.top,subtopic:d.sub,q:p.q,a:p.a};add++}});
+  const removed=old.filter((o,n)=>!used.has(n));
+  const keep=Math.min(idxs.length,final.length);
+  for(let k=0;k<keep;k++)questions[idxs[k]]=final[k];
+  if(final.length>idxs.length)questions.push(...final.slice(idxs.length));
+  if(final.length<idxs.length){const drop=new Set(idxs.slice(final.length));questions=questions.filter((_,i)=>!drop.has(i))}
+  if(removed.length)moveToTrash('Bulk एडिट में हटे प्रश्न: '+d.bk+' › '+d.ch+' › '+d.top+(d.sub?' › '+d.sub:''),removed);
+  dropPh(d.g,d.su,d.bk,d.ch,d.top,d.sub);
+  save();
+  return{total:final.length,same,chg,add,del:removed.length};
 }
