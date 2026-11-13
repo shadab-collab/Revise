@@ -152,3 +152,48 @@ body.nb-open{overflow:hidden}
 .nb-flowwrap{position:relative}
 .nb-newer{display:none;position:absolute;left:calc(var(--u)*var(--pl));bottom:calc(var(--u)*.1);padding:2px 12px;border-radius:14px;font-size:calc(var(--u)*.3);line-height:1.6;background:rgba(31,58,95,.9);color:#fff;text-shadow:none;font-family:"Noto Sans Devanagari",system-ui,sans-serif;z-index:3}
 .nbfull .nb-newer.on{display:block}
+
+/* ---- नया होम: किताबों का प्रोफ़ेशनल अकॉर्डियन ---- */
+.tree .pills{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 8px;-webkit-overflow-scrolling:touch}
+.pill{flex:none;border:1px solid var(--line);background:#fff;color:var(--muted);border-radius:999px;padding:8px 15px;font-weight:700;font-size:13.5px;white-space:nowrap}
+.pill small{margin-left:7px;padding:1px 7px;border-radius:10px;background:var(--soft);color:var(--blue);font-weight:700}
+.pill.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.pill.on small{background:rgba(255,255,255,.2);color:#fff}
+.tree-tools{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin:10px 0 12px}
+.tree-tools input[type=search]{flex:1;min-width:220px;padding:10px 14px;border-radius:999px;background:#f8fafc}
+.chk{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--muted);font-weight:600;cursor:pointer;user-select:none}
+.chk input{width:auto;padding:0;accent-color:var(--accent)}
+.tree-sum{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 14px;padding:10px 14px;border-radius:12px;background:linear-gradient(120deg,#f1f6fb,#f6f9f9);border:1px solid var(--line);font-size:13.5px;color:var(--muted)}
+.tree-sum b{color:var(--blue)}
+.tree-sum .bar{flex:1;min-width:90px}
+.bar{display:inline-block;height:6px;border-radius:6px;background:#e5ebf3;overflow:hidden;vertical-align:middle}
+.bar i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,var(--accent),#2dd4bf)}
+.tree details>summary{list-style:none;cursor:pointer}
+.tree details>summary::-webkit-details-marker{display:none}
+.chev{margin-left:auto;font-size:20px;line-height:1;color:#9aa8bc;transition:transform .18s;flex:none}
+.tree details[open]>summary>.chev{transform:rotate(90deg)}
+.bk{border:1px solid var(--line);border-radius:16px;background:#fff;margin-bottom:12px;box-shadow:var(--shadow);overflow:hidden}
+.bk>summary{display:flex;align-items:center;gap:13px;padding:14px 16px}
+.bk>summary:hover{background:#f8fafc}
+.av{--fc:#2f62b8;--fl:#4f82d8;flex:none;width:46px;height:46px;border-radius:13px;display:grid;place-items:center;color:#fff;font-weight:800;font-size:19px;background:linear-gradient(135deg,var(--fl),var(--fc));box-shadow:0 4px 10px rgba(15,23,42,.16)}
+.bk-main{display:flex;flex-direction:column;min-width:0;flex:1}
+.bk-t{font-weight:800;color:var(--blue);overflow-wrap:anywhere}
+.bk-m{font-size:12.5px;color:var(--muted)}
+.bk-prog{display:flex;align-items:center;gap:8px;flex:none;width:118px;font-size:12px;color:var(--muted)}
+.bk-prog .bar{flex:1}
+.ch{border-top:1px solid var(--line)}
+.ch>summary{display:flex;align-items:center;gap:10px;padding:11px 16px 11px 30px;font-weight:700;color:#24344c}
+.ch>summary:hover,.tp>summary:hover{background:#f8fafc}
+.tp>summary{display:flex;align-items:center;gap:10px;padding:9px 16px 9px 46px;font-weight:600;color:#33445c;border-top:1px dashed #e6ebf2}
+.nm{flex:1;min-width:0;overflow-wrap:anywhere}
+.ct{flex:none;font-size:12px;font-weight:600;color:var(--muted)}
+.ch>summary .bar,.tp>summary .bar{width:60px;flex:none}
+.leaf{display:flex;align-items:center;gap:10px;padding:9px 16px 9px 62px;border-top:1px dashed #e6ebf2;cursor:pointer;color:#33445c;font-weight:600}
+.leaf:hover{background:#f3f9f8}
+.leaf .lf-name{flex:1;min-width:0;overflow-wrap:anywhere}
+.leaf .lf-meta{flex:none;font-size:12px;color:var(--muted);font-weight:600}
+.lf-go{flex:none;padding:6px 12px;border-radius:999px;font-size:12.5px;background:var(--accent);color:#fff}
+.lf-go:hover{background:#0b5f59}
+.lf-add{flex:none;padding:5px 11px;border-radius:999px;font-size:12px;background:#fff;color:var(--muted);border:1px dashed #c3ccda}
+.leaf.empty{cursor:default;opacity:.75}
+@media(max-width:600px){.bk>summary{padding:12px}.bk-prog{width:70px}.bk-prog b{display:none}.ch>summary{padding-left:20px}.tp>summary{padding-left:32px}.leaf{padding-left:34px;flex-wrap:wrap}.leaf .lf-name{flex-basis:100%}.leaf .lf-meta{flex:1}.ch>summary .bar,.tp>summary .bar{width:40px}}

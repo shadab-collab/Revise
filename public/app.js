@@ -29,25 +29,18 @@ const countSub=sub=>inTopic.filter(q=>subtopicOf(q)===sub&&!q.ph).length;
 const hue=t=>[...String(t)].reduce((a,c)=>a+c.charCodeAt(0),0)%6;const card=(name,count,icon,action,cls='')=>`<button class="shelf-card c${hue(name)}" data-shelf-action="${esc(action)}"><span class="shelf-name">${esc(name)}</span><span class="shelf-count">${count} प्रश्न</span></button>`;
 let crumbs=`<div class="crumbs"><button class="crumb ${shelf.level==='grade'?'current':''}" data-level="grade">सभी कक्षाएँ</button>${shelf.grade?`<button class="crumb ${shelf.level==='book'?'current':''}" data-level="book">${esc(shelf.grade)}</button>`:''}${shelf.book?`<button class="crumb ${shelf.level==='chapter'?'current':''}" data-level="chapter">${esc(shelf.book)}</button>`:''}${shelf.chapter?`<button class="crumb ${shelf.level==='topic'?'current':''}" data-level="topic">${esc(shelf.chapter)}</button>`:''}${shelf.topic?`<button class="crumb ${shelf.level==='subtopic'?'current':''}" data-level="subtopic">${esc(shelf.topic)}</button>`:''}${shelf.level==='study'?`<span class="crumb current">पढ़ाई</span>`:''}</div>`;
 let body='';
-if(shelf.level==='grade'){
- body=`<div class="shelf-intro"><h2>अपनी कक्षा चुनें</h2><span class="hint">फ़ोल्डर खोलते जाइए: किताब → अध्याय → टॉपिक</span></div><div class="shelf-section"><p class="shelf-label">कक्षा / अध्ययन स्तर</p><div class="shelf-grid">${allGrades.map(g=>card(g,countGrade(g),'📁',`grade|${g}`)).join('')}</div></div>`;
-}else if(shelf.level==='book'){
- body=`<div class="shelf-intro"><h2>${esc(shelf.grade)} की किताबें</h2><span class="hint">अपनी किताब का फ़ोल्डर खोलें</span></div><div class="shelf-section"><p class="shelf-label">किताबें</p><div class="shelf-row">${allBooks.map(b=>card(b.book,countBook(b.subject,b.book),'📕',`book|${b.subject}|${b.book}`,'book-card')).join('')}</div></div>`;
-}else if(shelf.level==='chapter'){
- body=`<div class="shelf-intro"><h2>${esc(shelf.book)}</h2><span class="hint">विषय: ${esc(shelf.subject)}</span></div><div class="shelf-section"><p class="shelf-label">अध्याय चुनें</p><div class="shelf-grid">${chapters.map(c=>card(c,countChapter(c),'📂',`chapter|${c}`)).join('')}</div></div>`;
-}else if(shelf.level==='topic'){
- body=`<div class="shelf-intro"><h2>${esc(shelf.chapter)}</h2><span class="hint">अब अध्याय के अंदर टॉपिक चुनें</span></div><div class="shelf-section"><p class="shelf-label">टॉपिक</p><div class="shelf-grid">${topics.map(t=>card(t,countTopic(t),'🗂️',`topic|${t}`)).join('')}</div></div>`;
-}else if(shelf.level==='subtopic'){
- body=`<div class="shelf-intro"><h2>${esc(shelf.topic)}</h2><span class="hint">सबटॉपिक हो तो चुनें, वरना सीधे पढ़ाई शुरू करें</span></div><div class="shelf-section"><p class="shelf-label">सबटॉपिक / छोटे भाग</p><div class="shelf-grid">${subtopics.map(st=>card(st==='बिना सबटॉपिक'?'सीधे प्रश्न शुरू करें':st,countSub(st),st==='बिना सबटॉपिक'?'📖':'📄',`subtopic|${st}`)).join('')}</div></div>`;
+if(shelf.level!=='study'){
+ body=treeHtml();
 }else if(shelf.level==='study'){
  body=`<div class="study-bar"><button class="secondary study-back" id="backToShelf">← वापस</button><label class="sw"><input type="checkbox" id="deskToggle"${deskMode?' checked':''}><span class="sw-track"></span><span>डेस्कटॉप व्यू</span></label></div>${q?`<div class="sizebar"><span class="sa sm">अ</span><input type="range" id="sizeRange" min="60" max="200" step="5" value="${Math.round((deskMode?nbScaleDesk:nbScale)*100)}"><span class="sa lg">अ</span><b id="sizeVal">${Math.round((deskMode?nbScaleDesk:nbScale)*100)}%</b><button class="outline" id="sizeReset" style="padding:5px 10px">100%</button><span id="sizeMode">${deskMode?'डेस्कटॉप मोड का आकार':'मोबाइल मोड का आकार'}</span><button class="secondary" id="nbMax2" style="margin-left:auto">⛶ फुल स्क्रीन</button></div><div class="deskwrap${deskMode?' deskview':''}${nbFull?' nbfull':''}"><div class="panel study-card"><div class="meta"><span>${esc(gradeOf(q))} · ${esc(subjectOf(q))} · ${esc(bookOf(q))}</span><span>प्रश्न ${index+1}/${list.length}</span></div><div class="book-spine">अध्याय: ${esc(chapterOf(q))}</div><div class="book-spine">टॉपिक: ${esc(topicOf(q))}</div>${q.subtopic?`<div class="book-spine">सबटॉपिक: ${esc(q.subtopic)}</div>`:''}<div class="progress"><span style="width:${list.length?(index+1)/list.length*100:0}%"></span></div><div class="notebook" style="--u:${nbUnit()}px"><div class="nb-head"><span>${esc(subjectOf(q))} · ${esc(topicOf(q))}</span><span>दिनांक: ${nbDate}</span></div><div class="nb-pg">पृष्ठ ${index+1}/${list.length}</div><button class="nb-max" id="nbMax" title="फुल स्क्रीन">⛶</button><button class="nb-newer" id="nbNewer">नए पृष्ठ पर लौटें ▶▶</button><div class="nb-flowwrap"><div class="nb-flow">${nbBody(q,list,animIdx)}</div></div></div><div class="actions">${revealed<q.a.length?`<button class="primary" id="reveal">${revealed===0?'पहली पंक्ति दिखाएँ':'अगली पंक्ति दिखाएँ'} →</button><button class="secondary" id="skipNext">अगला प्रश्न ⏭</button>`:`<button class="primary" id="next">अगला प्रश्न →</button>`}<button class="outline" id="prevQ">← पिछला प्रश्न</button><button class="secondary" id="autoToggle">${autoPaused?'▶ ऑटो रिवील चालू करें':'⏸ ऑटो रिवील रोकें'}</button><button class="secondary" id="remember">✓ याद हो गया</button><button class="outline" id="again">↻ फिर से देखें</button><button class="outline" id="editQ">संपादित करें</button></div><div class="jumpbar"><span>प्रश्न नंबर पर जाएँ:</span><input type="number" id="jumpNo" min="1" max="${list.length}" value="${index+1}"><button class="secondary" id="jumpGo">जाएँ</button><span>कुल ${list.length}</span></div><div class="nb-rail"><button data-fs="exit" title="फुल स्क्रीन से बाहर (Esc)">✕</button><button data-fs="pgprev" title="पिछला पृष्ठ पलटें (PageUp / दायाँ स्वाइप)">◁</button><button data-fs="pgnext" title="अगला पृष्ठ पलटें (PageDown / बायाँ स्वाइप)">▷</button><button data-fs="reveal" title="अगली पंक्ति">▼</button><button data-fs="next" title="अगला प्रश्न">⏭</button><button data-fs="prev" title="पिछला प्रश्न">⏮</button><button data-fs="auto" id="fsAuto" title="ऑटो रिवील रोकें/चलाएँ">${autoPaused?'▶':'⏸'}</button><button data-fs="remember" title="याद हो गया">✓</button><button data-fs="edit" title="इस प्रश्न को संपादित करें">✎</button><button data-fs="again" title="फिर से देखें">↻</button><button data-fs="jump" title="प्रश्न नंबर पर जाएँ">#</button><button data-fs="minus" title="छोटा करें">A−</button><button data-fs="plus" title="बड़ा करें">A+</button></div></div></div>`:`<div class="panel shelf-empty">इस सबटॉपिक में प्रश्न नहीं मिले।</div>`}`;
 }
-$('#content').innerHTML=`<div class="panel bookshelf-panel">${shelf.level!=='study'?resumeCard():''}${crumbs}${body}</div>`;
+$('#content').innerHTML=`<div class="panel bookshelf-panel">${shelf.level!=='study'?resumeCard():crumbs}${body}</div>`;
 document.querySelectorAll('[data-level]').forEach(b=>b.onclick=()=>{const level=b.dataset.level;shelf.level=level;if(level==='grade'){shelf.grade=shelf.subject=shelf.book=shelf.chapter=shelf.topic=shelf.subtopic=''}if(level==='book'){shelf.subject=shelf.book=shelf.chapter=shelf.topic=shelf.subtopic=''}if(level==='chapter'){shelf.chapter=shelf.topic=shelf.subtopic=''}if(level==='topic'){shelf.topic=shelf.subtopic=''}index=0;revealed=0;renderRevise()});
 document.querySelectorAll('[data-shelf-action]').forEach(b=>b.onclick=()=>{const parts=b.dataset.shelfAction.split('|'),act=parts[0];if(act==='grade'){shelf.grade=parts[1];shelf.level='book';shelf.subject=shelf.book=shelf.chapter=shelf.topic=shelf.subtopic=''}if(act==='book'){shelf.subject=parts[1];shelf.book=parts[2];shelf.level='chapter';shelf.chapter=shelf.topic=shelf.subtopic=''}if(act==='chapter'){shelf.chapter=parts[1];shelf.level='topic';shelf.topic=shelf.subtopic=''}if(act==='topic'){shelf.topic=parts[1];shelf.level='subtopic';shelf.subtopic=''}if(act==='subtopic'){shelf.subtopic=parts[1];shelf.level='study';index=0;revealed=0}renderRevise()});
 $('#resumeGo')?.addEventListener('click',goResume);
+bindTree();
 if(shelf.level!=='study'||!q)return;
-$('#backToShelf')?.addEventListener('click',()=>{shelf.level='subtopic';index=0;revealed=0;renderRevise()});
+$('#backToShelf')?.addEventListener('click',()=>{shelf.level='home';index=0;revealed=0;renderRevise()});
 $('#reveal')?.addEventListener('click',()=>{revealed=Math.min(q.a.length,revealed+1);renderRevise()});
 $('#autoToggle')?.addEventListener('click',e=>{autoPaused=!autoPaused;e.currentTarget.textContent=autoPaused?'▶ ऑटो रिवील चालू करें':'⏸ ऑटो रिवील रोकें'});
 $('#next')?.addEventListener('click',()=>{index=(index+1)%list.length;revealed=0;renderRevise()});
@@ -521,3 +514,101 @@ function fsCaretPage(){
   if(pg!==fsNewest)setPage(pg);
 }
 if(typeof window!=='undefined')window.addEventListener('resize',()=>{if(nbFull)fsLayout()});
+
+/* ===== नया होम: एक ही पन्ने पर किताब → अध्याय → टॉपिक → सबटॉपिक (अकॉर्डियन) ===== */
+let treeQuery='',treeLeaves=[],treeShowEmpty=false;
+const treeOpen=new Set();
+try{(JSON.parse(localStorage.getItem('shadabTreeOpen'))||[]).forEach(k=>treeOpen.add(k));treeShowEmpty=localStorage.getItem('shadabTreeEmpty')==='1'}catch(e){}
+const saveTreeOpen=()=>{try{localStorage.setItem('shadabTreeOpen',JSON.stringify([...treeOpen].slice(-300)))}catch(e){}};
+function treeData(g){
+  const books={};
+  questions.forEach(q=>{
+    if(gradeOf(q)!==g)return;
+    const su=subjectOf(q),bk=bookOf(q),ch=chapterOf(q),tp=topicOf(q),st=subtopicOf(q);
+    const B=books[su+'␟'+bk]??={su,bk,ch:{}};
+    const C=B.ch[ch]??={tp:{}};
+    const T=C.tp[tp]??={st:{}};
+    const L=T.st[st]??={tot:0,done:0,txt:''};
+    if(!q.ph){L.tot++;if(seen[q.id]==='याद')L.done++;if(treeQuery)L.txt+=' '+q.q}
+  });
+  return books;
+}
+const addS=(a,b)=>({tot:a.tot+b.tot,done:a.done+b.done});
+const sumLeaves=st=>Object.values(st).reduce(addS,{tot:0,done:0});
+const sumTopics=tp=>Object.values(tp).reduce((a,T)=>addS(a,sumLeaves(T.st)),{tot:0,done:0});
+const sumChaps=ch=>Object.values(ch).reduce((a,C)=>addS(a,sumTopics(C.tp)),{tot:0,done:0});
+const pctOf=x=>x.tot?Math.round(x.done*100/x.tot):0;
+const barHtml=x=>`<span class="bar"><i style="width:${pctOf(x)}%"></i></span>`;
+function booksHtml(){
+  treeLeaves=[];
+  const g=shelf.grade,q=treeQuery.trim().toLowerCase();
+  const op=k=>(q||treeOpen.has(k))?' open':'';
+  const hue=t=>[...String(t)].reduce((a,c)=>a+c.charCodeAt(0),0)%6;
+  const leafRow=(L,rec,label,pad)=>{
+    const i=treeLeaves.push(rec)-1;
+    return `<div class="leaf${L.tot?'':' empty'}" data-leaf="${i}" style="padding-left:${pad}px"><span class="lf-name">${esc(label)}</span><span class="lf-meta">${L.tot?`${L.tot} प्रश्न · ${L.done} याद`:'अभी प्रश्न नहीं'}</span>${L.tot?`<button class="lf-go" data-go="${i}">शुरू करें ▸</button>`:`<button class="lf-add" data-add="${i}">+ प्रश्न जोड़ें</button>`}</div>`;
+  };
+  let out='';
+  Object.values(treeData(g)).forEach(B=>{
+    let chHtml='',nCh=0;
+    Object.entries(B.ch).forEach(([cn,C])=>{
+      let tpHtml='';
+      Object.entries(C.tp).forEach(([tn,T])=>{
+        const leaves=Object.entries(T.st).filter(([sn,L])=>{
+          if(!treeShowEmpty&&L.tot===0)return false;
+          if(q&&!(B.bk+' '+cn+' '+tn+' '+sn+' '+L.txt).toLowerCase().includes(q))return false;
+          return true});
+        if(!leaves.length)return;
+        const rec=sn=>({g,su:B.su,bk:B.bk,ch:cn,tp:tn,st:sn});
+        if(leaves.length===1&&leaves[0][0]==='बिना सबटॉपिक'){tpHtml+=leafRow(leaves[0][1],rec(leaves[0][0]),tn,44);return}
+        const ts=sumLeaves(Object.fromEntries(leaves));
+        tpHtml+=`<details class="tp" data-k="${esc([g,B.bk,cn,tn].join('␟'))}"${op([g,B.bk,cn,tn].join('␟'))}><summary><span class="nm">${esc(tn)}</span><span class="ct">${ts.tot} प्रश्न</span>${barHtml(ts)}<span class="chev">›</span></summary>${leaves.map(([sn,L])=>leafRow(L,rec(sn),sn==='बिना सबटॉपिक'?'सभी प्रश्न':sn,62)).join('')}</details>`;
+      });
+      if(!tpHtml)return;
+      nCh++;
+      const cs=sumTopics(C.tp);
+      chHtml+=`<details class="ch" data-k="${esc([g,B.bk,cn].join('␟'))}"${op([g,B.bk,cn].join('␟'))}><summary><span class="nm">${esc(cn)}</span><span class="ct">${cs.tot} प्रश्न</span>${barHtml(cs)}<span class="chev">›</span></summary>${tpHtml}</details>`;
+    });
+    if(!chHtml)return;
+    const bs=sumChaps(B.ch);
+    out+=`<details class="bk" data-k="${esc([g,B.bk].join('␟'))}"${op([g,B.bk].join('␟'))}><summary><span class="av c${hue(B.bk)}">${esc([...B.bk][0]||'?')}</span><span class="bk-main"><span class="bk-t">${esc(B.bk)}</span><span class="bk-m">${esc(B.su)} · ${nCh} अध्याय · ${bs.tot} प्रश्न</span></span><span class="bk-prog">${barHtml(bs)}<b>${pctOf(bs)}%</b></span><span class="chev">›</span></summary>${chHtml}</details>`;
+  });
+  return out||`<div class="shelf-empty">${q?'कोई परिणाम नहीं मिला।':'इस कक्षा में अभी कोई प्रश्न वाला टॉपिक नहीं है। “प्रश्न जोड़ें” टैब से प्रश्न जोड़िए, या ऊपर “खाली फ़ोल्डर भी दिखाएँ” चालू कीजिए।'}</div>`;
+}
+function treeHtml(){
+  const cnt=g=>questions.filter(q=>gradeOf(q)===g&&!q.ph).length;
+  const all=[...new Set(questions.map(gradeOf))].sort((a,b)=>a.localeCompare(b,'hi'));
+  const grades=treeShowEmpty?all:all.filter(g=>cnt(g)>0);
+  const tools=`<div class="tree-tools"><input type="search" id="treeSearch" value="${esc(treeQuery)}" placeholder="किताब, अध्याय, टॉपिक या प्रश्न खोजें…"><label class="chk"><input type="checkbox" id="treeEmpty"${treeShowEmpty?' checked':''}> खाली फ़ोल्डर भी दिखाएँ</label></div>`;
+  if(!grades.length)return `<div class="tree">${tools}<div class="shelf-empty">अभी कोई प्रश्न नहीं है। “प्रश्न जोड़ें” टैब से प्रश्न जोड़िए।</div></div>`;
+  if(!grades.includes(shelf.grade))shelf.grade=(lastPos&&grades.includes(lastPos.grade))?lastPos.grade:grades[0];
+  const gs=sumChaps(Object.values(treeData(shelf.grade)).reduce((a,B)=>Object.assign(a,Object.fromEntries(Object.entries(B.ch).map(([k,v])=>[B.bk+'␟'+k,v]))),{}));
+  return `<div class="tree"><div class="pills">${grades.map(g=>`<button class="pill${g===shelf.grade?' on':''}" data-grade="${esc(g)}">${esc(g)}<small>${cnt(g)}</small></button>`).join('')}</div>${tools}<div class="tree-sum"><span><b>${esc(shelf.grade)}</b> · ${gs.tot} प्रश्न · ${gs.done} याद</span>${barHtml(gs)}<b>${pctOf(gs)}%</b></div><div id="treeBooks">${booksHtml()}</div></div>`;
+}
+function startLeaf(i){
+  const L=treeLeaves[i];if(!L)return;
+  shelf={level:'study',grade:L.g,subject:L.su,book:L.bk,chapter:L.ch,topic:L.tp,subtopic:L.st};
+  index=0;revealed=0;renderRevise();
+  if(window.scrollTo)window.scrollTo(0,0);
+}
+function addLeaf(i){
+  const L=treeLeaves[i];if(!L)return;
+  dst={grade:L.g,book:L.bk,subject:L.su,chapter:L.ch,topic:L.tp,subtopic:L.st==='बिना सबटॉपिक'?'':L.st,nw:{}};
+  tab='manage';render();
+  const pk=document.getElementById('picker');if(pk&&pk.scrollIntoView)pk.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function bindTreeBody(){
+  document.querySelectorAll('#treeBooks [data-go]').forEach(b=>b.onclick=e=>{e.stopPropagation();startLeaf(Number(b.dataset.go))});
+  document.querySelectorAll('#treeBooks .leaf:not(.empty)').forEach(r=>r.onclick=()=>startLeaf(Number(r.dataset.leaf)));
+  document.querySelectorAll('#treeBooks [data-add]').forEach(b=>b.onclick=e=>{e.stopPropagation();addLeaf(Number(b.dataset.add))});
+  document.querySelectorAll('#treeBooks details[data-k]').forEach(d=>d.addEventListener('toggle',()=>{if(treeQuery.trim())return;if(d.open)treeOpen.add(d.dataset.k);else treeOpen.delete(d.dataset.k);saveTreeOpen()}));
+}
+function bindTree(){
+  if(!document.getElementById('treeBooks'))return;
+  document.querySelectorAll('[data-grade]').forEach(b=>b.onclick=()=>{shelf.grade=b.dataset.grade;renderRevise()});
+  const se=document.getElementById('treeSearch');
+  if(se)se.oninput=()=>{treeQuery=se.value;document.getElementById('treeBooks').innerHTML=booksHtml();bindTreeBody()};
+  const em=document.getElementById('treeEmpty');
+  if(em)em.onchange=()=>{treeShowEmpty=em.checked;try{localStorage.setItem('shadabTreeEmpty',em.checked?'1':'0')}catch(e){}renderRevise()};
+  bindTreeBody();
+}
