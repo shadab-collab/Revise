@@ -150,3 +150,5 @@ body.nb-open{overflow:hidden}
 .nbfull .nb-flowwrap.turn{animation:nbturn .42s ease}
 @keyframes nbturn{from{opacity:.1;transform:translateX(34px) rotate(.8deg)}to{opacity:1;transform:none}}
 .nb-flowwrap{position:relative}
+.nb-newer{display:none;position:absolute;left:calc(var(--u)*var(--pl));bottom:calc(var(--u)*.1);padding:2px 12px;border-radius:14px;font-size:calc(var(--u)*.3);line-height:1.6;background:rgba(31,58,95,.9);color:#fff;text-shadow:none;font-family:"Noto Sans Devanagari",system-ui,sans-serif;z-index:3}
+.nbfull .nb-newer.on{display:block}
