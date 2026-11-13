@@ -1,6 +1,6 @@
 let questions=[],seen={},ready=false,trash=[],editId=null;const openKeys=new Set();let bulkDraft='',bulkEditCtx=null;let typedLines=0,typedQ=null,typingNow=false,typingTimer=null;let deskMode=false;try{deskMode=localStorage.getItem('shadabDeskView')==='1'}catch(e){}
 const loadNum=(k,d)=>{try{const v=Number(localStorage.getItem(k));return v>=.6&&v<=2?v:d}catch(e){return d}};
-let nbScale=loadNum('shadabNbScale',1),nbScaleDesk=loadNum('shadabNbScaleDesk',1),nbScaleFull=loadNum('shadabNbScaleFull',1.3),nbFull=false,fsPageStart=0,fsLastIndex=-9,fsFlip=false,fsReveal={},lastPos=null,resumeSaved='',resumeT=null;let tab='revise',grade='सभी कक्षाएँ',book='सभी पुस्तकें',subject='सभी विषय',chapter='सभी टॉपिक',subtopic='सभी सबटॉपिक',index=0,revealed=0,autoPaused=false;let shelf={level:'grade',grade:'',subject:'',book:'',chapter:'',topic:'',subtopic:''};
+let nbScale=loadNum('shadabNbScale',1),nbScaleDesk=loadNum('shadabNbScaleDesk',1),nbScaleFull=loadNum('shadabNbScaleFull',1.3),nbFull=false,fsFlowStart=0,fsPageBase=0,fsPage=0,fsShownPage=-1,fsRows=8,fsLastIndex=-9,fsReveal={},lastPos=null,resumeSaved='',resumeT=null;let tab='revise',grade='सभी कक्षाएँ',book='सभी पुस्तकें',subject='सभी विषय',chapter='सभी टॉपिक',subtopic='सभी सबटॉपिक',index=0,revealed=0,autoPaused=false;let shelf={level:'grade',grade:'',subject:'',book:'',chapter:'',topic:'',subtopic:''};
 const $=s=>document.querySelector(s);const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));const save=()=>{try{localStorage.setItem('shadabRevisionQuestions',JSON.stringify(questions))}catch(e){}queueSync()};const gradeOf=q=>q.grade||'बिना कक्षा',subjectOf=q=>q.subject||'सामान्य';const bookOf=q=>q.book||`${q.subject||'सामान्य'} — सामान्य पुस्तक`;const chapterOf=q=>q.chapter||'बिना अध्याय';const topicOf=q=>q.topic||'सामान्य प्रश्न';const subtopicOf=q=>q.subtopic||'बिना सबटॉपिक';const filtered=()=>questions.filter(q=>gradeOf(q)===shelf.grade&&subjectOf(q)===shelf.subject&&bookOf(q)===shelf.book&&chapterOf(q)===shelf.chapter&&topicOf(q)===shelf.topic&&subtopicOf(q)===shelf.subtopic);
 function options(values,current){return values.map(v=>`<option ${v===current?'selected':''} value="${esc(v)}">${esc(v)}</option>`).join('')}
 function render(){if(tab!=='revise'&&nbFull){nbFull=false;try{document.body.classList.remove('nb-open')}catch(e){}}
@@ -20,6 +20,7 @@ const list=filtered();if(index>=list.length)index=Math.max(0,list.length-1);cons
 if(revealed===0)typedLines=0;if(q&&typedQ!==q.id){typedQ=q.id;typedLines=0}
 const animIdx=(q&&revealed>0&&revealed-1>=typedLines)?revealed-1:-1;
 if(shelf.level==='study'&&q)noteResume(q);
+if(nbFull&&q){if(fsLastIndex!==index&&fsLastIndex+1!==index){fsPageBase+=fsPage+1;fsPage=0;fsFlowStart=index}fsLastIndex=index;fsReveal[q.id]=revealed}
 const countGrade=g=>questions.filter(q=>gradeOf(q)===g&&!q.ph).length;
 const countBook=(su,bk)=>questions.filter(q=>gradeOf(q)===shelf.grade&&subjectOf(q)===su&&bookOf(q)===bk&&!q.ph).length;
 const countChapter=c=>inBook.filter(q=>chapterOf(q)===c&&!q.ph).length;
@@ -39,7 +40,7 @@ if(shelf.level==='grade'){
 }else if(shelf.level==='subtopic'){
  body=`<div class="shelf-intro"><h2>${esc(shelf.topic)}</h2><span class="hint">सबटॉपिक हो तो चुनें, वरना सीधे पढ़ाई शुरू करें</span></div><div class="shelf-section"><p class="shelf-label">सबटॉपिक / छोटे भाग</p><div class="shelf-grid">${subtopics.map(st=>card(st==='बिना सबटॉपिक'?'सीधे प्रश्न शुरू करें':st,countSub(st),st==='बिना सबटॉपिक'?'📖':'📄',`subtopic|${st}`)).join('')}</div></div>`;
 }else if(shelf.level==='study'){
- body=`<div class="study-bar"><button class="secondary study-back" id="backToShelf">← वापस</button><label class="sw"><input type="checkbox" id="deskToggle"${deskMode?' checked':''}><span class="sw-track"></span><span>डेस्कटॉप व्यू</span></label></div>${q?`<div class="sizebar"><span class="sa sm">अ</span><input type="range" id="sizeRange" min="60" max="200" step="5" value="${Math.round((deskMode?nbScaleDesk:nbScale)*100)}"><span class="sa lg">अ</span><b id="sizeVal">${Math.round((deskMode?nbScaleDesk:nbScale)*100)}%</b><button class="outline" id="sizeReset" style="padding:5px 10px">100%</button><span id="sizeMode">${deskMode?'डेस्कटॉप मोड का आकार':'मोबाइल मोड का आकार'}</span><button class="secondary" id="nbMax2" style="margin-left:auto">⛶ फुल स्क्रीन</button></div><div class="deskwrap${deskMode?' deskview':''}${nbFull?' nbfull':''}"><div class="panel study-card"><div class="meta"><span>${esc(gradeOf(q))} · ${esc(subjectOf(q))} · ${esc(bookOf(q))}</span><span>प्रश्न ${index+1}/${list.length}</span></div><div class="book-spine">अध्याय: ${esc(chapterOf(q))}</div><div class="book-spine">टॉपिक: ${esc(topicOf(q))}</div>${q.subtopic?`<div class="book-spine">सबटॉपिक: ${esc(q.subtopic)}</div>`:''}<div class="progress"><span style="width:${list.length?(index+1)/list.length*100:0}%"></span></div><div class="notebook${fsFlip?' flip':''}" style="--u:${nbUnit()}px"><div class="nb-head"><span>${esc(subjectOf(q))} · ${esc(topicOf(q))}</span><span>दिनांक: ${nbDate}</span></div><div class="nb-pg">पृष्ठ ${index+1}/${list.length}</div><button class="nb-max" id="nbMax" title="फुल स्क्रीन">⛶</button>${nbBody(q,list,animIdx)}</div><div class="actions">${revealed<q.a.length?`<button class="primary" id="reveal">${revealed===0?'पहली पंक्ति दिखाएँ':'अगली पंक्ति दिखाएँ'} →</button><button class="secondary" id="skipNext">अगला प्रश्न ⏭</button>`:`<button class="primary" id="next">अगला प्रश्न →</button>`}<button class="outline" id="prevQ">← पिछला प्रश्न</button><button class="secondary" id="autoToggle">${autoPaused?'▶ ऑटो रिवील चालू करें':'⏸ ऑटो रिवील रोकें'}</button><button class="secondary" id="remember">✓ याद हो गया</button><button class="outline" id="again">↻ फिर से देखें</button><button class="outline" id="editQ">संपादित करें</button></div><div class="jumpbar"><span>प्रश्न नंबर पर जाएँ:</span><input type="number" id="jumpNo" min="1" max="${list.length}" value="${index+1}"><button class="secondary" id="jumpGo">जाएँ</button><span>कुल ${list.length}</span></div><div class="nb-rail"><button data-fs="exit" title="फुल स्क्रीन से बाहर (Esc)">✕</button><button data-fs="reveal" title="अगली पंक्ति">▼</button><button data-fs="next" title="अगला प्रश्न">⏭</button><button data-fs="prev" title="पिछला प्रश्न">⏮</button><button data-fs="auto" id="fsAuto" title="ऑटो रिवील रोकें/चलाएँ">${autoPaused?'▶':'⏸'}</button><button data-fs="remember" title="याद हो गया">✓</button><button data-fs="edit" title="इस प्रश्न को संपादित करें">✎</button><button data-fs="again" title="फिर से देखें">↻</button><button data-fs="jump" title="प्रश्न नंबर पर जाएँ">#</button><button data-fs="minus" title="छोटा करें">A−</button><button data-fs="plus" title="बड़ा करें">A+</button></div></div></div>`:`<div class="panel shelf-empty">इस सबटॉपिक में प्रश्न नहीं मिले।</div>`}`;
+ body=`<div class="study-bar"><button class="secondary study-back" id="backToShelf">← वापस</button><label class="sw"><input type="checkbox" id="deskToggle"${deskMode?' checked':''}><span class="sw-track"></span><span>डेस्कटॉप व्यू</span></label></div>${q?`<div class="sizebar"><span class="sa sm">अ</span><input type="range" id="sizeRange" min="60" max="200" step="5" value="${Math.round((deskMode?nbScaleDesk:nbScale)*100)}"><span class="sa lg">अ</span><b id="sizeVal">${Math.round((deskMode?nbScaleDesk:nbScale)*100)}%</b><button class="outline" id="sizeReset" style="padding:5px 10px">100%</button><span id="sizeMode">${deskMode?'डेस्कटॉप मोड का आकार':'मोबाइल मोड का आकार'}</span><button class="secondary" id="nbMax2" style="margin-left:auto">⛶ फुल स्क्रीन</button></div><div class="deskwrap${deskMode?' deskview':''}${nbFull?' nbfull':''}"><div class="panel study-card"><div class="meta"><span>${esc(gradeOf(q))} · ${esc(subjectOf(q))} · ${esc(bookOf(q))}</span><span>प्रश्न ${index+1}/${list.length}</span></div><div class="book-spine">अध्याय: ${esc(chapterOf(q))}</div><div class="book-spine">टॉपिक: ${esc(topicOf(q))}</div>${q.subtopic?`<div class="book-spine">सबटॉपिक: ${esc(q.subtopic)}</div>`:''}<div class="progress"><span style="width:${list.length?(index+1)/list.length*100:0}%"></span></div><div class="notebook" style="--u:${nbUnit()}px"><div class="nb-head"><span>${esc(subjectOf(q))} · ${esc(topicOf(q))}</span><span>दिनांक: ${nbDate}</span></div><div class="nb-pg">पृष्ठ ${index+1}/${list.length}</div><button class="nb-max" id="nbMax" title="फुल स्क्रीन">⛶</button><div class="nb-flowwrap"><div class="nb-flow">${nbBody(q,list,animIdx)}</div></div></div><div class="actions">${revealed<q.a.length?`<button class="primary" id="reveal">${revealed===0?'पहली पंक्ति दिखाएँ':'अगली पंक्ति दिखाएँ'} →</button><button class="secondary" id="skipNext">अगला प्रश्न ⏭</button>`:`<button class="primary" id="next">अगला प्रश्न →</button>`}<button class="outline" id="prevQ">← पिछला प्रश्न</button><button class="secondary" id="autoToggle">${autoPaused?'▶ ऑटो रिवील चालू करें':'⏸ ऑटो रिवील रोकें'}</button><button class="secondary" id="remember">✓ याद हो गया</button><button class="outline" id="again">↻ फिर से देखें</button><button class="outline" id="editQ">संपादित करें</button></div><div class="jumpbar"><span>प्रश्न नंबर पर जाएँ:</span><input type="number" id="jumpNo" min="1" max="${list.length}" value="${index+1}"><button class="secondary" id="jumpGo">जाएँ</button><span>कुल ${list.length}</span></div><div class="nb-rail"><button data-fs="exit" title="फुल स्क्रीन से बाहर (Esc)">✕</button><button data-fs="reveal" title="अगली पंक्ति">▼</button><button data-fs="next" title="अगला प्रश्न">⏭</button><button data-fs="prev" title="पिछला प्रश्न">⏮</button><button data-fs="auto" id="fsAuto" title="ऑटो रिवील रोकें/चलाएँ">${autoPaused?'▶':'⏸'}</button><button data-fs="remember" title="याद हो गया">✓</button><button data-fs="edit" title="इस प्रश्न को संपादित करें">✎</button><button data-fs="again" title="फिर से देखें">↻</button><button data-fs="jump" title="प्रश्न नंबर पर जाएँ">#</button><button data-fs="minus" title="छोटा करें">A−</button><button data-fs="plus" title="बड़ा करें">A+</button></div></div></div>`:`<div class="panel shelf-empty">इस सबटॉपिक में प्रश्न नहीं मिले।</div>`}`;
 }
 $('#content').innerHTML=`<div class="panel bookshelf-panel">${shelf.level!=='study'?resumeCard():''}${crumbs}${body}</div>`;
 document.querySelectorAll('[data-level]').forEach(b=>b.onclick=()=>{const level=b.dataset.level;shelf.level=level;if(level==='grade'){shelf.grade=shelf.subject=shelf.book=shelf.chapter=shelf.topic=shelf.subtopic=''}if(level==='book'){shelf.subject=shelf.book=shelf.chapter=shelf.topic=shelf.subtopic=''}if(level==='chapter'){shelf.chapter=shelf.topic=shelf.subtopic=''}if(level==='topic'){shelf.topic=shelf.subtopic=''}index=0;revealed=0;renderRevise()});
@@ -64,15 +65,8 @@ document.querySelectorAll('[data-fs]').forEach(b=>b.addEventListener('click',()=
 $('#remember')?.addEventListener('click',()=>{seen[q.id]='याद';saveSeen();if(index<list.length-1){index++;revealed=0}renderRevise()});
 $('#again')?.addEventListener('click',()=>{revealed=0;renderRevise()});
 $('#editQ')?.addEventListener('click',()=>startEdit(q.id));
-if(nbFull){
-  if(fsLastIndex!==index&&fsLastIndex+1!==index)fsPageStart=index;
-  fsLastIndex=index;fsReveal[q.id]=revealed;
-  const nbe=document.querySelector('.notebook');
-  if(nbe&&index>fsPageStart&&nbe.scrollHeight>nbe.clientHeight+2){fsPageStart=index;fsFlip=true;renderRevise(autoScroll);return}
-}
-fsFlip=false;
+if(nbFull)fsLayout();
 {const tEl=document.querySelector('[data-type]');if(tEl){const i=Number(tEl.dataset.type);typedLines=revealed;typeInto(tEl,q.a[i],()=>{const dm=document.getElementById('doneMsg');if(dm)dm.style.display=''})}}
-if(nbFull&&revealed>0){const nbe=document.querySelector('.notebook');if(nbe)nbe.scrollTop=nbe.scrollHeight}
 if(autoScroll && revealed>0){requestAnimationFrame(()=>{const actions=document.querySelector('.actions');if(actions)actions.scrollIntoView({behavior:'smooth',block:'end'});});}
 }
 function parseTxtQuestions(text,raw){
@@ -356,7 +350,7 @@ function typeInto(elm,text,done){
   const step=()=>{
     if(!elm.isConnected){typingNow=false;return}
     i++;if(tp&&rs){tp.textContent=seg.slice(0,i).join('');rs.textContent=seg.slice(i).join('')}else elm.textContent=seg.slice(0,i).join('');
-    if(nbFull){const nbe=document.querySelector('.notebook');if(nbe)nbe.scrollTop=nbe.scrollHeight}
+    if(nbFull)fsCaretPage();
     if(i>=seg.length){finish();return}
     const c=seg[i-1];
     const d=/[।,.?!;:]/.test(c)?240+Math.random()*160:/\s/.test(c)?60+Math.random()*60:26+Math.random()*44;
@@ -439,11 +433,11 @@ function applyBulkEdit(d,parsed){
 
 /* ===== फुल स्क्रीन (मैक्सिमाइज) कॉपी ===== */
 function setFull(on){
-  nbFull=!!on;if(nbFull){fsPageStart=index;fsLastIndex=index}
+  nbFull=!!on;if(nbFull){fsFlowStart=index;fsLastIndex=index;fsPage=0;fsPageBase=0;fsShownPage=-1}
   try{document.body.classList.toggle('nb-open',nbFull)}catch(e){}
   const w=document.querySelector('.deskwrap');if(w)w.classList.toggle('nbfull',nbFull);
   applyDesk();applyNb();
-  const nb=document.querySelector('.notebook');if(nb)nb.scrollTop=nbFull?nb.scrollHeight:0;
+  if(shelf.level==='study')renderRevise();
 }
 function fullScale(d){nbScaleFull=Math.max(.6,Math.min(2,Math.round((nbScaleFull+d)*20)/20));saveSizes();applyNb()}
 function fsAction(a){
@@ -480,6 +474,36 @@ function nbBlock(q,qi,shown,anim,cur){
 }
 function nbBody(q,list,anim){
   let html='';
-  if(nbFull){for(let k=Math.max(0,Math.min(fsPageStart,index));k<index;k++){const pq=list[k];if(pq)html+=nbBlock(pq,k,Math.min(pq.a.length,fsReveal[pq.id]||0),-1,false)}}
+  if(nbFull){for(let k=Math.max(0,Math.min(fsFlowStart,index));k<index;k++){const pq=list[k];if(pq)html+=nbBlock(pq,k,Math.min(pq.a.length,fsReveal[pq.id]||0),-1,false)}}
   return html+nbBlock(q,index,revealed,anim,true);
 }
+
+/* ===== असली कॉपी जैसा पन्ना-बदलाव: उत्तर आधा इस पन्ने पर, बाकी अगले पन्ने पर ===== */
+function fsLayout(){
+  const nb=document.querySelector('.notebook'),wrap=document.querySelector('.nb-flowwrap'),flow=document.querySelector('.nb-flow');
+  if(!nb||!wrap||!flow||!nbFull)return;
+  const u=nbUnit();
+  fsRows=Math.max(3,Math.floor((nb.clientHeight-u-u*.8)/u));
+  wrap.style.height=(fsRows*u)+'px';
+  const fr=flow.getBoundingClientRect().top;
+  const t=document.querySelector('.nb-text[data-type]');
+  let page;
+  if(t){page=Math.floor((t.getBoundingClientRect().top-fr+1)/u/fsRows)}
+  else{page=Math.floor((Math.max(1,Math.round(flow.offsetHeight/u))-1)/fsRows)}
+  setPage(Math.max(0,page));
+}
+function setPage(p){
+  const wrap=document.querySelector('.nb-flowwrap'),flow=document.querySelector('.nb-flow');if(!wrap||!flow)return;
+  const u=nbUnit(),changed=fsShownPage!==-1&&p!==fsShownPage;
+  fsPage=p;fsShownPage=p;
+  flow.style.transform=`translateY(${-p*fsRows*u}px)`;
+  const pg=document.querySelector('.nb-pg');if(pg)pg.textContent='पृष्ठ '+(fsPageBase+p+1);
+  if(changed){wrap.classList.remove('turn');void wrap.offsetWidth;wrap.classList.add('turn')}
+}
+function fsCaretPage(){
+  const flow=document.querySelector('.nb-flow'),caret=document.querySelector('.nb-caret');if(!flow||!caret)return;
+  const u=nbUnit(),top=caret.getBoundingClientRect().top-flow.getBoundingClientRect().top;
+  const pg=Math.max(0,Math.floor(Math.floor((top+1)/u)/fsRows));
+  if(pg!==fsPage)setPage(pg);
+}
+if(typeof window!=='undefined')window.addEventListener('resize',()=>{if(nbFull)fsLayout()});
